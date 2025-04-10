@@ -11,10 +11,10 @@ st.title("📈 ROI Dashboard")
 
 # Input section
 st.header("Enter Investment Data")
-investment_amount = st.number_input("Investment Amount (₹)", min_value=0.0, step=100.0)
+investment_amount = st.number_input("Investment Amount ($)", min_value=0.0, step=100.0)
 investment_date = st.date_input("Investment Date", datetime.today())
 
-return_amount = st.number_input("Return Amount (₹)", min_value=0.0, step=100.0)
+return_amount = st.number_input("Return Amount ($)", min_value=0.0, step=100.0)
 return_date = st.date_input("Return Date", datetime.today())
 
 # Add button
@@ -27,9 +27,9 @@ if st.button("Calculate ROI"):
 
     # Display summary
     st.subheader("ROI Summary")
-    st.metric("Total Investment", f"₹{investment_amount:,.2f}")
-    st.metric("Total Returns", f"₹{return_amount:,.2f}")
-    st.metric("Net Profit", f"₹{profit:,.2f}")
+    st.metric("Total Investment", f"${investment_amount:,.2f}")
+    st.metric("Total Returns", f"${return_amount:,.2f}")
+    st.metric("Net Profit", f"${profit:,.2f}")
     st.metric("ROI", f"{roi:.2%}")
     st.metric("Annualized ROI", f"{annualized_roi:.2%}")
 
