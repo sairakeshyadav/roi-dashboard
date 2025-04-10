@@ -37,7 +37,7 @@ st.title("🔐 ROI Dashboard with Analysis")
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-menu = st.sidebar.selectbox("Menu", ["Login", "Register", "ROI Calculator", "File ROI Analysis"])
+menu = st.sidebar.selectbox("Menu", ["Login", "Register", "ROI Calculator", "File ROI Analysis", "Logout"])
 
 if menu == "Login":
     st.subheader("Login")
@@ -50,6 +50,13 @@ if menu == "Login":
             st.session_state.username = username
         else:
             st.error("Invalid username or password.")
+
+elif menu == "Logout":
+    if st.session_state.logged_in:
+        st.session_state.logged_in = False
+        st.success("You have been logged out.")
+    else:
+        st.info("You are not logged in.")
 
 elif menu == "Register":
     st.subheader("Create New Account")
@@ -87,7 +94,7 @@ elif menu == "ROI Calculator":
             else:
                 st.error("Investment must be greater than 0.")
     else:
-        st.warning("Please login to use the ROI Calculator.")
+        st.warning("Please log in to access the ROI Calculator.")
 
 elif menu == "File ROI Analysis":
     if st.session_state.logged_in:
@@ -128,4 +135,4 @@ elif menu == "File ROI Analysis":
         else:
             st.info("Upload a file to analyze campaign ROI data.")
     else:
-        st.warning("Please login to analyze ROI data from files.")
+        st.warning("Please log in to access file analysis.")
