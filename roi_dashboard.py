@@ -30,14 +30,49 @@ def verify_user(username, password):
         return bcrypt.checkpw(password.encode(), user.iloc[0].password.encode())
     return False
 
+# ---------- Admin Section ----------
+def admin_dashboard():
+    st.subheader("🛠️ Admin Dashboard")
+
+    users_df = load_users()
+
+    st.markdown("### 👥 Existing Users")
+    st.dataframe(users_df)
+
+    st.markdown("---")
+    st.markdown("### ➕ Add New User")
+    new_user = st.text_input("New Username (Admin Panel)")
+    new_pass = st.text_input("New Password (Admin Panel)", type="password")
+
+    if st.button("Create User"):
+        if new_user and new_pass:
+            if new_user in users_df["username"].values:
+                st.warning("Username already exists.")
+            else:
+                save_user(new_user, new_pass)
+                st.success(f"User '{new_user}' created.")
+                st.experimental_rerun()
+        else:
+            st.warning("Please enter both username and password.")
+
+    st.markdown("---")
+    st.markdown("### 🗑️ Delete User")
+    user_to_delete = st.selectbox("Select User to Delete", users_df["username"])
+
+    if st.button("Delete User"):
+        if user_to_delete == "admin":
+            st.error("Cannot delete the admin account.")
+        else:
+            updated_users = users_df[users_df["username"] != user_to_delete]
+            updated_users.to_csv(USER_FILE, index=False)
+            st.success(f"User '{user_to_delete}' deleted.")
+            st.experimental_rerun()
+
 # ---------- App UI ----------
 st.set_page_config(page_title="ROI Dashboard Login", layout="wide")
 st.title("🔐 ROI Dashboard with Analysis")
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-menu = st.sidebar.selectbox("Menu", ["Login", "Register", "ROI Calculator", "File ROI Analysis", "Logout"])
+menu = st.sidebar.selectbox("Menu", ["Login", "Register", "ROI Calculator", "File ROI Analysis"] + (["Admin"] if st.session_state.get("username") == "admin" else []))
 
 if menu == "Login":
     st.subheader("Login")
@@ -46,17 +81,10 @@ if menu == "Login":
     if st.button("Login"):
         if verify_user(username, password):
             st.success(f"Welcome {username}!")
-            st.session_state.logged_in = True
-            st.session_state.username = username
+            st.session_state["logged_in"] = True
+            st.session_state["username"] = username
         else:
             st.error("Invalid username or password.")
-
-elif menu == "Logout":
-    if st.session_state.logged_in:
-        st.session_state.logged_in = False
-        st.success("You have been logged out.")
-    else:
-        st.info("You are not logged in.")
 
 elif menu == "Register":
     st.subheader("Create New Account")
@@ -70,7 +98,7 @@ elif menu == "Register":
             st.warning("Please enter both username and password.")
 
 elif menu == "ROI Calculator":
-    if st.session_state.logged_in:
+    if st.session_state.get("logged_in"):
         st.subheader("📈 Manual ROI Calculator")
 
         investment = st.number_input("Enter Investment Amount ($)", min_value=0.0, step=100.0)
@@ -83,7 +111,6 @@ elif menu == "ROI Calculator":
                 roi = (returns - investment) / investment
                 st.metric("ROI", f"{roi:.2%}")
 
-                # Annualized ROI
                 days = (end_date - start_date).days
                 if days > 0:
                     years = days / 365.25
@@ -94,10 +121,10 @@ elif menu == "ROI Calculator":
             else:
                 st.error("Investment must be greater than 0.")
     else:
-        st.warning("Please log in to access the ROI Calculator.")
+        st.warning("Please login to use the ROI calculator.")
 
 elif menu == "File ROI Analysis":
-    if st.session_state.logged_in:
+    if st.session_state.get("logged_in"):
         st.subheader("📂 Upload and Analyze ROI Data")
 
         uploaded_file = st.file_uploader("Upload Excel or CSV", type=["xlsx", "csv"])
@@ -135,4 +162,7 @@ elif menu == "File ROI Analysis":
         else:
             st.info("Upload a file to analyze campaign ROI data.")
     else:
-        st.warning("Please log in to access file analysis.")
+        st.warning("Please login to use File ROI Analysis.")
+
+elif menu == "Admin" and st.session_state.get("username") == "admin":
+    admin_dashboard()
