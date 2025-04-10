@@ -134,4 +134,45 @@ elif menu == "File ROI Analysis":
 
 elif menu == "Admin":
     st.subheader("🔐 Admin Dashboard")
-    st.info("You are logged in as admin. Future admin tools and user management can go here.")
+    st.write("Manage application users securely.")
+
+    users_df = load_users()
+
+    st.markdown("### 👥 Existing Users")
+    st.dataframe(users_df.drop(columns=["password"]))  # Hide passwords
+
+    # --- Add New User ---
+    st.markdown("### ➕ Add New User")
+    new_username = st.text_input("New Username")
+    new_password = st.text_input("New Password", type="password")
+    if st.button("Add User"):
+        if new_username and new_password:
+            if new_username in users_df['username'].values:
+                st.warning("User already exists.")
+            else:
+                save_user(new_username, new_password)
+                st.success(f"User '{new_username}' added.")
+                st.experimental_rerun()
+        else:
+            st.warning("Username and password cannot be empty.")
+
+    # --- Reset Password ---
+    st.markdown("### 🔁 Reset User Password")
+    user_to_reset = st.selectbox("Select user", users_df[users_df.username != "admin"]["username"].tolist())
+    new_reset_password = st.text_input("New Password for Selected User", type="password")
+    if st.button("Reset Password"):
+        if user_to_reset and new_reset_password:
+            users_df.loc[users_df["username"] == user_to_reset, "password"] = bcrypt.hashpw(new_reset_password.encode(), bcrypt.gensalt()).decode()
+            users_df.to_csv(USER_FILE, index=False)
+            st.success(f"Password for '{user_to_reset}' has been reset.")
+        else:
+            st.warning("Please provide a valid user and password.")
+
+    # --- Delete User ---
+    st.markdown("### ❌ Delete User")
+    user_to_delete = st.selectbox("Select user to delete", users_df[users_df.username != "admin"]["username"].tolist())
+    if st.button("Delete User"):
+        users_df = users_df[users_df["username"] != user_to_delete]
+        users_df.to_csv(USER_FILE, index=False)
+        st.success(f"User '{user_to_delete}' deleted.")
+        st.experimental_rerun()
