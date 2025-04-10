@@ -68,7 +68,7 @@ elif menu == "Logout":
     st.session_state.logged_in = False
     st.session_state.username = None
     st.success("You have been logged out.")
-    st.experimental_rerun()
+    st.stop()
 
 elif menu == "ROI Calculator":
     st.subheader("📈 Manual ROI Calculator")
@@ -151,8 +151,7 @@ elif menu == "Admin":
                 st.warning("User already exists.")
             else:
                 save_user(new_username, new_password)
-                st.success(f"User '{new_username}' added.")
-                st.experimental_rerun()
+                st.success(f"User '{new_username}' added. Please refresh the page to see the update.")
         else:
             st.warning("Username and password cannot be empty.")
 
@@ -174,5 +173,4 @@ elif menu == "Admin":
     if st.button("Delete User"):
         users_df = users_df[users_df["username"] != user_to_delete]
         users_df.to_csv(USER_FILE, index=False)
-        st.success(f"User '{user_to_delete}' deleted.")
-        st.experimental_rerun()
+        st.success(f"User '{user_to_delete}' deleted. Please refresh the page to see the update.")
