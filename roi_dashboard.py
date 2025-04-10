@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 from datetime import datetime
+import time
 
 # ---------------------- CONFIG ----------------------
 st.set_page_config(
@@ -10,6 +11,26 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# ---------------------- STYLES ----------------------
+ANIMATED_KPI_STYLE = """
+    <style>
+    .kpi-card {
+        padding: 1rem;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #e0f7fa, #e0f2f1);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        margin-bottom: 10px;
+        transition: transform 0.3s ease;
+    }
+    .kpi-card:hover {
+        transform: scale(1.05);
+    }
+    </style>
+"""
+
+st.markdown(ANIMATED_KPI_STYLE, unsafe_allow_html=True)
 
 # ---------------------- SIDEBAR ----------------------
 st.sidebar.title("📁 Upload Data & Settings")
@@ -20,94 +41,38 @@ dark_mode = st.sidebar.toggle("🌙 Dark Mode")
 # Tabs navigation
 selected_tab = st.sidebar.radio("Navigate", ["Dashboard", "Manual Calculator"], index=0)
 
-# ---------------------- THEME PRESETS ----------------------
-def set_theme(dark_mode: bool):
-    if dark_mode:
-        st.markdown("""
+# ---------------------- THEME ----------------------
+if dark_mode:
+    st.markdown("""
         <style>
-            html, body, .stApp {
-                background-color: #121212;
-                color: #FAFAFA;
-                font-family: 'Segoe UI', sans-serif;
-            }
-            .stButton>button {
-                background-color: #1f77b4;
-                color: white;
-                border-radius: 8px;
-                border: none;
-            }
-            .stDataFrame, .css-1v0mbdj {
-                background-color: #1e1e1e;
-                color: #FAFAFA;
-            }
-            .stTextInput>div>div>input {
-                background-color: #222;
-                color: white;
-            }
-            .css-1offfwp {
-                background-color: #252525 !important;
-            }
-            .stSelectbox>div>div>div>div {
-                background-color: #1f1f1f;
-                color: white;
-            }
+            body, .stApp { background-color: #0e1117; color: #FAFAFA; }
+            .css-1d391kg, .css-1v0mbdj, .css-ffhzg2, .css-1k2i4n7 { color: #FAFAFA !important; }
+            .stButton>button { background-color: #2e7bcf; color: white; border-radius: 8px; }
         </style>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <style>
-            html, body, .stApp {
-                background-color: #f8f9fa;
-                color: #212529;
-                font-family: 'Segoe UI', sans-serif;
-            }
-            .stButton>button {
-                background-color: #007bff;
-                color: white;
-                border-radius: 8px;
-                border: none;
-            }
-            .stDataFrame, .css-1v0mbdj {
-                background-color: white;
-                color: #212529;
-            }
-            .stTextInput>div>div>input {
-                background-color: white;
-                color: black;
-            }
-            .css-1offfwp {
-                background-color: #ffffff !important;
-            }
-            .stSelectbox>div>div>div>div {
-                background-color: white;
-                color: black;
-            }
-        </style>
-        """, unsafe_allow_html=True)
-
-# Apply the theme
-set_theme(dark_mode)
+    """, unsafe_allow_html=True)
 
 # ---------------------- DASHBOARD TAB ----------------------
 if selected_tab == "Dashboard":
     st.title("📊 ROI Dashboard - Campaign Insights")
 
     if uploaded_file is not None:
-        if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file)
+        with st.spinner("Processing your data..."):
+            if uploaded_file.name.endswith(".csv"):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
 
-        try:
-            df['Date'] = pd.to_datetime(df['Date'])
-            df['Profit'] = df['Revenue'] - df['Cost']
-            df['ROI (%)'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
-            df['Cost/Conversion'] = df['Cost'] / df['Conversions']
-            df['Revenue/Conversion'] = df['Revenue'] / df['Conversions']
-        except Exception as e:
-            st.error(f"Error in processing data: {e}")
-            st.stop()
+            try:
+                df['Date'] = pd.to_datetime(df['Date'])
+                df['Profit'] = df['Revenue'] - df['Cost']
+                df['ROI (%)'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
+                df['Cost/Conversion'] = df['Cost'] / df['Conversions']
+                df['Revenue/Conversion'] = df['Revenue'] / df['Conversions']
+            except Exception as e:
+                st.error(f"Error in processing data: {e}")
+                st.stop()
 
+        st.success("✅ Data successfully loaded!")
         st.subheader("📋 Data Preview")
         st.dataframe(df, use_container_width=True)
 
@@ -127,14 +92,23 @@ if selected_tab == "Dashboard":
         )
         df_filtered = df[mask]
 
-        # KPI metrics
         st.markdown("### 🚀 Performance Summary")
-        col1, col2, col3, col4, col5 = st.columns(5)
-        col1.metric("💸 Total Investment", f"${df_filtered['Cost'].sum():,.2f}")
-        col2.metric("💰 Total Revenue", f"${df_filtered['Revenue'].sum():,.2f}")
-        col3.metric("📈 Net Profit", f"${df_filtered['Profit'].sum():,.2f}")
-        col4.metric("📊 Avg ROI", f"{df_filtered['ROI (%)'].mean():.2f}%")
-        col5.metric("👥 Total Conversions", int(df_filtered['Conversions'].sum()))
+        kpi_cols = st.columns(5)
+        kpis = [
+            ("💸 Total Investment", f"${df_filtered['Cost'].sum():,.2f}"),
+            ("💰 Total Revenue", f"${df_filtered['Revenue'].sum():,.2f}"),
+            ("📈 Net Profit", f"${df_filtered['Profit'].sum():,.2f}"),
+            ("📊 Avg ROI", f"{df_filtered['ROI (%)'].mean():.2f}%"),
+            ("👥 Total Conversions", int(df_filtered['Conversions'].sum())),
+        ]
+        for col, (label, value) in zip(kpi_cols, kpis):
+            with col:
+                st.markdown(f"""
+                    <div class="kpi-card">
+                        <h5>{label}</h5>
+                        <h2>{value}</h2>
+                    </div>
+                """, unsafe_allow_html=True)
 
         # ROI over time chart
         st.markdown("### 📆 ROI Over Time")
