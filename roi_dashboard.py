@@ -1,110 +1,58 @@
 import streamlit as st
 import pandas as pd
 import bcrypt
-import plotly.express as px
+import os
 from datetime import datetime
 
-# -------- CONFIG --------
-st.set_page_config(page_title="ROI Dashboard", layout="wide")
-
-# -------- USER AUTH --------
+# ---------- Constants ----------
 USER_FILE = "users.csv"
 
 def load_users():
-    try:
+    if os.path.exists(USER_FILE):
         return pd.read_csv(USER_FILE)
-    except:
+    else:
         return pd.DataFrame(columns=["username", "password"])
 
 def save_user(username, password):
     users = load_users()
     hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    users = users.append({"username": username, "password": hashed_pw}, ignore_index=True)
+    new_row = pd.DataFrame([{"username": username, "password": hashed_pw}])
+    users = pd.concat([users, new_row], ignore_index=True)
     users.to_csv(USER_FILE, index=False)
 
-def login(username, password):
+def verify_user(username, password):
     users = load_users()
-    user = users[users["username"] == username]
-    if not user.empty and bcrypt.checkpw(password.encode(), user.iloc[0]["password"].encode()):
-        return True
+    user = users[users.username == username]
+    if not user.empty:
+        return bcrypt.checkpw(password.encode(), user.iloc[0].password.encode())
     return False
 
-# -------- SIDEBAR AUTH SECTION --------
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
+# ---------- App UI ----------
 
-def login_section():
-    st.sidebar.title("🔐 Login")
-    username = st.sidebar.text_input("Username")
-    password = st.sidebar.text_input("Password", type="password")
-    if st.sidebar.button("Login"):
-        if login(username, password):
-            st.session_state.logged_in = True
-            st.session_state.user = username
-            st.success("Logged in successfully!")
-            st.experimental_rerun()
-        else:
-            st.sidebar.error("Invalid credentials")
+st.set_page_config(page_title="ROI Dashboard Login", layout="centered")
+st.title("🔐 ROI Dashboard Login")
 
-def register_section():
-    st.sidebar.title("📝 Register")
-    new_user = st.sidebar.text_input("New Username")
-    new_pass = st.sidebar.text_input("New Password", type="password")
-    if st.sidebar.button("Register"):
-        users = load_users()
-        if new_user in users["username"].values:
-            st.sidebar.warning("Username already exists.")
+menu = st.sidebar.selectbox("Menu", ["Login", "Register"])
+
+if menu == "Login":
+    st.subheader("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if verify_user(username, password):
+            st.success(f"Welcome {username}!")
+            st.session_state["logged_in"] = True
+            st.session_state["username"] = username
         else:
+            st.error("Invalid username or password.")
+
+elif menu == "Register":
+    st.subheader("Create New Account")
+    new_user = st.text_input("New Username")
+    new_pass = st.text_input("New Password", type="password")
+    if st.button("Register"):
+        if new_user and new_pass:
             save_user(new_user, new_pass)
-            st.sidebar.success("User registered. Please log in.")
-
-def logout_section():
-    if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
-        st.session_state.user = ""
-        st.experimental_rerun()
-
-# -------- MAIN LOGIC --------
-if not st.session_state.logged_in:
-    login_section()
-    st.sidebar.markdown("---")
-    register_section()
-else:
-    st.sidebar.markdown(f"👤 Logged in as **{st.session_state.user}**")
-    logout_section()
-
-    # -------- Dashboard Logic Here --------
-    st.title("📊 ROI Dashboard - Welcome!")
-
-    uploaded_file = st.sidebar.file_uploader("Upload Excel or CSV", type=["xlsx", "csv"])
-    if uploaded_file is not None:
-        if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
+            st.success("User registered successfully! Please login.")
         else:
-            df = pd.read_excel(uploaded_file)
-
-        df['Date'] = pd.to_datetime(df['Date'])
-        df['Profit'] = df['Revenue'] - df['Cost']
-        df['ROI (%)'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
-
-        with st.expander("📅 Filter by Date"):
-            start = st.date_input("Start Date", df['Date'].min())
-            end = st.date_input("End Date", df['Date'].max())
-            df = df[(df['Date'] >= pd.to_datetime(start)) & (df['Date'] <= pd.to_datetime(end))]
-
-        st.write("### 📈 Metrics")
-        st.metric("Total Investment", f"${df['Cost'].sum():,.2f}")
-        st.metric("Total Revenue", f"${df['Revenue'].sum():,.2f}")
-        st.metric("Net Profit", f"${df['Profit'].sum():,.2f}")
-        st.metric("Avg ROI (%)", f"{df['ROI (%)'].mean():.2f}")
-
-        st.write("### 📊 ROI Over Time")
-        chart_df = df.groupby("Date")[["Cost", "Revenue"]].sum()
-        chart_df["ROI (%)"] = ((chart_df["Revenue"] - chart_df["Cost"]) / chart_df["Cost"]) * 100
-        st.plotly_chart(px.line(chart_df, y="ROI (%)", title="ROI Trend"), use_container_width=True)
-
-        st.write("### 📄 Raw Data")
-        st.dataframe(df, use_container_width=True)
-    else:
-        st.info("Upload data to begin analyzing.")
-
+            st.warning("Please enter both username and password.")
