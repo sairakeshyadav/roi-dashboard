@@ -1,112 +1,110 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from datetime import datetime
 import plotly.express as px
+from datetime import datetime
 
-st.set_page_config(page_title="🎨 Stylish ROI Dashboard", layout="wide", page_icon="📊")
+# ---------- Page Config ----------
+st.set_page_config(page_title="💹 ROI Dashboard", layout="wide")
 
-# Custom CSS Styling
 st.markdown("""
     <style>
-        .main {
-            background-color: #f0f2f6;
-        }
-        .css-18e3th9 {
-            background-color: #ffffff;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .css-1d391kg {
-            background-color: #ffffff;
-            border-radius: 10px;
-        }
-        h1, h2, h3 {
-            color: #1f77b4;
-        }
+    .big-font {
+        font-size:20px !important;
+        font-weight:600;
+    }
+    .stMetric {
+        background-color: #f0f2f6;
+        border-radius: 10px;
+        padding: 10px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# Title
-st.title("🎨 Stylish & Interactive ROI Dashboard")
+# ---------- Title ----------
+st.title("💹 ROI Analytics Dashboard")
+st.markdown("Use this tool to analyze campaign performance, calculate ROI, and make better investment decisions.")
 
-# Sidebar for Upload
-st.sidebar.header("📤 Upload Your Data")
-uploaded_file = st.sidebar.file_uploader("Choose Excel or CSV File", type=["xlsx", "csv"])
+# ---------- Sidebar ----------
+st.sidebar.header("📁 Upload Campaign File")
+uploaded_file = st.sidebar.file_uploader("Upload Excel or CSV", type=["xlsx", "csv"])
 
+# ---------- Manual Calculator ----------
+with st.expander("🧮 Manual ROI Calculator (No Upload Needed)", expanded=False):
+    col1, col2 = st.columns(2)
+    with col1:
+        manual_investment = st.number_input("💸 Investment Amount ($)", min_value=0.0, value=1000.0)
+    with col2:
+        manual_return = st.number_input("💰 Return Amount ($)", min_value=0.0, value=1500.0)
+    
+    if manual_investment > 0:
+        manual_roi = (manual_return - manual_investment) / manual_investment * 100
+        st.success(f"📊 Your ROI is **{manual_roi:.2f}%**")
+    else:
+        st.warning("Please enter a valid investment amount.")
+
+# ---------- Data Upload Section ----------
 if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
+    
+    # ---------- Data Preprocessing ----------
     try:
-        df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file, engine='openpyxl')
+        df['Date'] = pd.to_datetime(df['Date'])
+        df['Profit'] = df['Revenue'] - df['Cost']
+        df['ROI (%)'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
+        df['Annualized ROI (%)'] = df.apply(
+            lambda row: ((1 + ((row['Revenue'] - row['Cost']) / row['Cost'])) ** (365 / max((datetime.now() - row['Date']).days, 1)) - 1) * 100,
+            axis=1
+        )
+        df['Cost/Conversion'] = df['Cost'] / df['Conversions']
+        df['Revenue/Conversion'] = df['Revenue'] / df['Conversions']
     except Exception as e:
-        st.error(f"❌ Error loading file: {e}")
+        st.error(f"Data formatting error: {e}")
         st.stop()
 
-    df['Date'] = pd.to_datetime(df['Date'])
-    df['Profit'] = df['Revenue'] - df['Cost']
-    df['ROI (%)'] = ((df['Profit']) / df['Cost']) * 100
-    df['Cost/Conversion'] = df['Cost'] / df['Conversions']
-    df['Revenue/Conversion'] = df['Revenue'] / df['Conversions']
+    # ---------- Filter Section ----------
+    st.sidebar.header("📅 Filter Data")
+    min_date = df['Date'].min()
+    max_date = df['Date'].max()
 
-    # Filters
-    st.sidebar.subheader("🔍 Filters")
-    selected_campaigns = st.sidebar.multiselect("Select Campaign(s)", df['Campaign'].unique(), default=list(df['Campaign'].unique()))
-    date_range = st.sidebar.date_input("Select Date Range", [df['Date'].min(), df['Date'].max()])
+    date_range = st.sidebar.date_input("Select Date Range", [min_date, max_date], min_value=min_date, max_value=max_date)
+    if len(date_range) == 2:
+        df = df[(df['Date'] >= pd.to_datetime(date_range[0])) & (df['Date'] <= pd.to_datetime(date_range[1]))]
 
-    filtered_df = df[(df['Campaign'].isin(selected_campaigns)) &
-                     (df['Date'].dt.date >= date_range[0]) &
-                     (df['Date'].dt.date <= date_range[1])]
+    selected_campaigns = st.sidebar.multiselect("🎯 Campaigns", options=df['Campaign'].unique(), default=df['Campaign'].unique())
+    df = df[df['Campaign'].isin(selected_campaigns)]
 
-    # KPI Metrics
-    st.markdown("## 📈 Key Performance Indicators")
-    kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
-    total_cost = filtered_df['Cost'].sum()
-    total_revenue = filtered_df['Revenue'].sum()
-    total_profit = total_revenue - total_cost
-    roi = ((total_profit) / total_cost) * 100 if total_cost else 0
-    years = (filtered_df['Date'].max() - filtered_df['Date'].min()).days / 365.25
-    annualized_roi = ((1 + roi / 100) ** (1 / years) - 1) * 100 if years > 0 else 0
+    # ---------- Metrics Section ----------
+    st.markdown("## 📈 Key Metrics")
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("💸 Total Investment", f"${df['Cost'].sum():,.2f}")
+    col2.metric("💰 Total Revenue", f"${df['Revenue'].sum():,.2f}")
+    col3.metric("📈 Net Profit", f"${df['Profit'].sum():,.2f}")
+    col4.metric("📊 Avg ROI", f"{df['ROI (%)'].mean():.2f}%")
+    col5.metric("🧠 Annualized ROI", f"{df['Annualized ROI (%)'].mean():.2f}%")
 
-    kpi1.metric("💰 Investment", f"${total_cost:,.2f}")
-    kpi2.metric("📈 Revenue", f"${total_revenue:,.2f}")
-    kpi3.metric("📊 Profit", f"${total_profit:,.2f}")
-    kpi4.metric("📉 ROI", f"{roi:.2f}%")
-    kpi5.metric("📆 Annualized ROI", f"{annualized_roi:.2f}%")
-
-    # Charts
+    # ---------- Charts ----------
     st.markdown("## 📊 ROI Over Time")
-    roi_by_date = filtered_df.groupby('Date').agg({'Revenue': 'sum', 'Cost': 'sum'}).reset_index()
-    roi_by_date['ROI (%)'] = ((roi_by_date['Revenue'] - roi_by_date['Cost']) / roi_by_date['Cost']) * 100
-    fig = px.line(roi_by_date, x='Date', y='ROI (%)', title='📆 ROI Trend', markers=True, template="plotly")
+    fig = px.line(df, x="Date", y="ROI (%)", color="Campaign", markers=True, title="Daily ROI Trends")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("## 🧾 Campaign Performance")
-    if 'Campaign' in filtered_df.columns:
-        campaign_perf = filtered_df.groupby('Campaign').agg({'Revenue': 'sum', 'Cost': 'sum'}).reset_index()
-        campaign_perf['ROI (%)'] = ((campaign_perf['Revenue'] - campaign_perf['Cost']) / campaign_perf['Cost']) * 100
-        fig2 = px.bar(campaign_perf, x='Campaign', y='ROI (%)', color='ROI (%)', title='🚀 Campaign ROI', template='plotly_dark')
-        st.plotly_chart(fig2, use_container_width=True)
+    st.markdown("## 📊 Revenue vs Cost by Campaign")
+    bar_df = df.groupby("Campaign").agg({'Revenue': 'sum', 'Cost': 'sum'}).reset_index()
+    fig2 = px.bar(bar_df, x="Campaign", y=["Revenue", "Cost"], barmode="group", title="Campaign Performance")
+    st.plotly_chart(fig2, use_container_width=True)
 
-    st.markdown("## 🔍 Detailed Data")
-    st.dataframe(filtered_df, use_container_width=True)
+    # ---------- Data Table ----------
+    st.markdown("## 📄 Detailed Data")
+    st.dataframe(df, use_container_width=True)
 
 else:
-    st.info("👈 Upload a file to get started or use the manual calculator below.")
+    st.info("📁 Please upload a file to begin analyzing your campaign data.")
+    st.markdown("""
+    ### 🔍 Sample Format:
+    - **Date** (YYYY-MM-DD)
+    - **Campaign**
+    - **Cost**
+    - **Revenue**
+    - **Conversions**
+    """)
 
-    st.markdown("## 🔧 Manual ROI Calculator")
-    with st.form("manual_calc"):
-        col1, col2 = st.columns(2)
-        with col1:
-            investment = st.number_input("Investment ($)", value=1000.0, step=100.0)
-            revenue = st.number_input("Revenue ($)", value=1500.0, step=100.0)
-        with col2:
-            manual_dates = st.date_input("Select Start & End Date", [datetime.today(), datetime.today()])
-        submit = st.form_submit_button("Calculate")
-
-    if submit:
-        roi = ((revenue - investment) / investment) * 100 if investment > 0 else 0
-        years = (manual_dates[1] - manual_dates[0]).days / 365.25 if len(manual_dates) == 2 else 0
-        annualized_roi = ((1 + roi / 100) ** (1 / years) - 1) * 100 if years > 0 else 0
-        st.success(f"📊 ROI: {roi:.2f}%")
-        st.success(f"📆 Annualized ROI: {annualized_roi:.2f}%")
