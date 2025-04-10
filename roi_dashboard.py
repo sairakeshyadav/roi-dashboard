@@ -24,9 +24,31 @@ selected_tab = st.sidebar.radio("Navigate", ["Dashboard", "Manual Calculator"], 
 if dark_mode:
     st.markdown("""
         <style>
-            body, .stApp { background-color: #0e1117; color: #FAFAFA; }
-            .css-1d391kg, .css-1v0mbdj, .css-ffhzg2, .css-1k2i4n7 { color: #FAFAFA !important; }
-            .stButton>button { background-color: #2e7bcf; color: white; border-radius: 8px; }
+            .main, body, .block-container {
+                background-color: #0e1117 !important;
+                color: #FAFAFA !important;
+            }
+            .stButton>button {
+                background-color: #2e7bcf !important;
+                color: white !important;
+                border-radius: 8px;
+            }
+            .stDataFrame, .stTextInput, .stNumberInput, .stDateInput, .stSelectbox, .stMultiselect, .stForm {
+                background-color: #1e1e1e !important;
+                color: white !important;
+            }
+            .stMetric label {
+                color: #FAFAFA !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+        <style>
+            .main, body, .block-container {
+                background-color: white !important;
+                color: black !important;
+            }
         </style>
     """, unsafe_allow_html=True)
 
