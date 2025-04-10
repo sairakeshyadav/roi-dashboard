@@ -34,6 +34,9 @@ def verify_user(username, password):
 st.set_page_config(page_title="ROI Dashboard Login", layout="wide")
 st.title("🔐 ROI Dashboard with Analysis")
 
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
 menu = st.sidebar.selectbox("Menu", ["Login", "Register", "ROI Calculator", "File ROI Analysis"])
 
 if menu == "Login":
@@ -43,8 +46,8 @@ if menu == "Login":
     if st.button("Login"):
         if verify_user(username, password):
             st.success(f"Welcome {username}!")
-            st.session_state["logged_in"] = True
-            st.session_state["username"] = username
+            st.session_state.logged_in = True
+            st.session_state.username = username
         else:
             st.error("Invalid username or password.")
 
@@ -60,63 +63,69 @@ elif menu == "Register":
             st.warning("Please enter both username and password.")
 
 elif menu == "ROI Calculator":
-    st.subheader("📈 Manual ROI Calculator")
+    if st.session_state.logged_in:
+        st.subheader("📈 Manual ROI Calculator")
 
-    investment = st.number_input("Enter Investment Amount ($)", min_value=0.0, step=100.0)
-    returns = st.number_input("Enter Return Amount ($)", min_value=0.0, step=100.0)
-    start_date = st.date_input("Start Date")
-    end_date = st.date_input("End Date")
+        investment = st.number_input("Enter Investment Amount ($)", min_value=0.0, step=100.0)
+        returns = st.number_input("Enter Return Amount ($)", min_value=0.0, step=100.0)
+        start_date = st.date_input("Start Date")
+        end_date = st.date_input("End Date")
 
-    if st.button("Calculate ROI"):
-        if investment > 0:
-            roi = (returns - investment) / investment
-            st.metric("ROI", f"{roi:.2%}")
+        if st.button("Calculate ROI"):
+            if investment > 0:
+                roi = (returns - investment) / investment
+                st.metric("ROI", f"{roi:.2%}")
 
-            # Annualized ROI
-            days = (end_date - start_date).days
-            if days > 0:
-                years = days / 365.25
-                annualized_roi = (1 + roi) ** (1 / years) - 1
-                st.metric("Annualized ROI", f"{annualized_roi:.2%}")
+                # Annualized ROI
+                days = (end_date - start_date).days
+                if days > 0:
+                    years = days / 365.25
+                    annualized_roi = (1 + roi) ** (1 / years) - 1
+                    st.metric("Annualized ROI", f"{annualized_roi:.2%}")
+                else:
+                    st.warning("End date must be after start date to calculate annualized ROI.")
             else:
-                st.warning("End date must be after start date to calculate annualized ROI.")
-        else:
-            st.error("Investment must be greater than 0.")
+                st.error("Investment must be greater than 0.")
+    else:
+        st.warning("Please login to use the ROI Calculator.")
 
 elif menu == "File ROI Analysis":
-    st.subheader("📂 Upload and Analyze ROI Data")
+    if st.session_state.logged_in:
+        st.subheader("📂 Upload and Analyze ROI Data")
 
-    uploaded_file = st.file_uploader("Upload Excel or CSV", type=["xlsx", "csv"])
-    if uploaded_file is not None:
-        if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
+        uploaded_file = st.file_uploader("Upload Excel or CSV", type=["xlsx", "csv"])
+        if uploaded_file is not None:
+            if uploaded_file.name.endswith(".csv"):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+
+            st.dataframe(df.head())
+
+            try:
+                df['Date'] = pd.to_datetime(df['Date'])
+                df['Profit'] = df['Revenue'] - df['Cost']
+                df['ROI (%)'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
+                df['Cost/Conversion'] = df['Cost'] / df['Conversions']
+                df['Revenue/Conversion'] = df['Revenue'] / df['Conversions']
+
+                st.success("Data Processed Successfully")
+                st.dataframe(df)
+
+                roi_summary = df.groupby('Campaign').agg({
+                    'Cost': 'sum',
+                    'Revenue': 'sum',
+                    'Profit': 'sum',
+                    'Conversions': 'sum',
+                    'ROI (%)': 'mean'
+                }).reset_index()
+
+                st.subheader("📊 Campaign ROI Summary")
+                st.dataframe(roi_summary)
+
+            except Exception as e:
+                st.error(f"Error processing data: {e}")
         else:
-            df = pd.read_excel(uploaded_file)
-
-        st.dataframe(df.head())
-
-        try:
-            df['Date'] = pd.to_datetime(df['Date'])
-            df['Profit'] = df['Revenue'] - df['Cost']
-            df['ROI (%)'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
-            df['Cost/Conversion'] = df['Cost'] / df['Conversions']
-            df['Revenue/Conversion'] = df['Revenue'] / df['Conversions']
-            
-            st.success("Data Processed Successfully")
-            st.dataframe(df)
-
-            roi_summary = df.groupby('Campaign').agg({
-                'Cost': 'sum',
-                'Revenue': 'sum',
-                'Profit': 'sum',
-                'Conversions': 'sum',
-                'ROI (%)': 'mean'
-            }).reset_index()
-
-            st.subheader("📊 Campaign ROI Summary")
-            st.dataframe(roi_summary)
-
-        except Exception as e:
-            st.error(f"Error processing data: {e}")
+            st.info("Upload a file to analyze campaign ROI data.")
     else:
-        st.info("Upload a file to analyze campaign ROI data.")
+        st.warning("Please login to analyze ROI data from files.")
