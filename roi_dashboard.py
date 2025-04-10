@@ -43,6 +43,7 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
 
+# Sidebar menu control
 if not st.session_state.logged_in:
     menu = st.sidebar.selectbox("Menu", ["Login"])
 else:
@@ -51,25 +52,29 @@ else:
     else:
         menu = st.sidebar.selectbox("Menu", ["ROI Calculator", "File ROI Analysis", "Logout"])
 
+# Login Section
 if menu == "Login":
     st.subheader("Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+    username = st.text_input("Username", key="login_user")
+    password = st.text_input("Password", type="password", key="login_pass")
+
     if st.button("Login"):
         if verify_user(username, password):
+            st.session_state.logged_in = True
+            st.session_state.username = username
             st.success(f"Welcome {username}!")
-            st.session_state["logged_in"] = True
-            st.session_state["username"] = username
             st.experimental_rerun()
         else:
             st.error("Invalid username or password.")
 
+# Logout Section
 elif menu == "Logout":
     st.session_state.logged_in = False
     st.session_state.username = None
     st.success("You have been logged out.")
     st.stop()
 
+# Manual ROI Calculator
 elif menu == "ROI Calculator":
     st.subheader("📈 Manual ROI Calculator")
 
@@ -94,6 +99,7 @@ elif menu == "ROI Calculator":
         else:
             st.error("Investment must be greater than 0.")
 
+# File ROI Analysis
 elif menu == "File ROI Analysis":
     st.subheader("📂 Upload and Analyze ROI Data")
 
@@ -132,6 +138,7 @@ elif menu == "File ROI Analysis":
     else:
         st.info("Upload a file to analyze campaign ROI data.")
 
+# Admin Dashboard
 elif menu == "Admin":
     st.subheader("🔐 Admin Dashboard")
     st.write("Manage application users securely.")
