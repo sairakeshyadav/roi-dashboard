@@ -55,7 +55,7 @@ if uploaded_file is not None:
         min_date = df_filtered['Date'].min().date()
         max_date = df_filtered['Date'].max().date()
         selected_dates = st.sidebar.date_input("Select Date Range", value=[min_date, max_date])
-        if isinstance(selected_dates, tuple) or isinstance(selected_dates, list):
+        if isinstance(selected_dates, (tuple, list)) and len(selected_dates) == 2:
             start_date, end_date = selected_dates
             df_filtered = df_filtered[(df_filtered['Date'].dt.date >= start_date) & (df_filtered['Date'].dt.date <= end_date)]
         else:
@@ -69,9 +69,9 @@ if uploaded_file is not None:
 
     # Determine the time period in years based on the Date column
     if 'Date' in df_filtered.columns and not df_filtered.empty:
-        start_date = df_filtered['Date'].min()
-        end_date = df_filtered['Date'].max()
-        period_years = (end_date - start_date).days / 365.25
+        start_date_file = df_filtered['Date'].min()
+        end_date_file = df_filtered['Date'].max()
+        period_years = (end_date_file - start_date_file).days / 365.25
     else:
         period_years = 0
 
@@ -133,20 +133,26 @@ else:
     st.markdown("---")
     st.subheader("🧮 Manual ROI Calculator")
 
-    # Create a form for manual inputs, including time period for annualization
+    # Create a form for manual inputs with manual date selection
     with st.form("manual_roi_form"):
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
         with col1:
             manual_cost = st.number_input("Enter Total Investment ($)", min_value=0.0, step=100.0, value=0.0)
-        with col2:
             manual_revenue = st.number_input("Enter Total Revenue ($)", min_value=0.0, step=100.0, value=0.0)
-        with col3:
-            period_years_manual = st.number_input("Enter Time Period (years)", min_value=0.0, step=0.1, value=1.0)
+        with col2:
+            date_range_manual = st.date_input("Select Date Range", value=[datetime.today(), datetime.today()])
         submitted = st.form_submit_button("Calculate ROI")
 
     if submitted:
         if manual_cost > 0:
             basic_roi_manual = ((manual_revenue - manual_cost) / manual_cost) * 100
+            # Calculate time period from manually selected dates
+            if isinstance(date_range_manual, (tuple, list)) and len(date_range_manual) == 2:
+                start_date_manual, end_date_manual = date_range_manual
+                period_years_manual = (end_date_manual - start_date_manual).days / 365.25
+            else:
+                period_years_manual = 0
+
             if period_years_manual > 0:
                 annualized_roi_manual = ((1 + basic_roi_manual/100) ** (1/period_years_manual) - 1) * 100
             else:
