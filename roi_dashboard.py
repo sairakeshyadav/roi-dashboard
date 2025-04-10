@@ -20,37 +20,73 @@ dark_mode = st.sidebar.toggle("🌙 Dark Mode")
 # Tabs navigation
 selected_tab = st.sidebar.radio("Navigate", ["Dashboard", "Manual Calculator"], index=0)
 
-# ---------------------- THEME ----------------------
-if dark_mode:
-    st.markdown("""
+# ---------------------- THEME PRESETS ----------------------
+def set_theme(dark_mode: bool):
+    if dark_mode:
+        st.markdown("""
         <style>
-            .main, body, .block-container {
-                background-color: #0e1117 !important;
-                color: #FAFAFA !important;
+            html, body, .stApp {
+                background-color: #121212;
+                color: #FAFAFA;
+                font-family: 'Segoe UI', sans-serif;
             }
             .stButton>button {
-                background-color: #2e7bcf !important;
-                color: white !important;
+                background-color: #1f77b4;
+                color: white;
                 border-radius: 8px;
+                border: none;
             }
-            .stDataFrame, .stTextInput, .stNumberInput, .stDateInput, .stSelectbox, .stMultiselect, .stForm {
-                background-color: #1e1e1e !important;
-                color: white !important;
+            .stDataFrame, .css-1v0mbdj {
+                background-color: #1e1e1e;
+                color: #FAFAFA;
             }
-            .stMetric label {
-                color: #FAFAFA !important;
+            .stTextInput>div>div>input {
+                background-color: #222;
+                color: white;
+            }
+            .css-1offfwp {
+                background-color: #252525 !important;
+            }
+            .stSelectbox>div>div>div>div {
+                background-color: #1f1f1f;
+                color: white;
             }
         </style>
-    """, unsafe_allow_html=True)
-else:
-    st.markdown("""
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
         <style>
-            .main, body, .block-container {
-                background-color: white !important;
-                color: black !important;
+            html, body, .stApp {
+                background-color: #f8f9fa;
+                color: #212529;
+                font-family: 'Segoe UI', sans-serif;
+            }
+            .stButton>button {
+                background-color: #007bff;
+                color: white;
+                border-radius: 8px;
+                border: none;
+            }
+            .stDataFrame, .css-1v0mbdj {
+                background-color: white;
+                color: #212529;
+            }
+            .stTextInput>div>div>input {
+                background-color: white;
+                color: black;
+            }
+            .css-1offfwp {
+                background-color: #ffffff !important;
+            }
+            .stSelectbox>div>div>div>div {
+                background-color: white;
+                color: black;
             }
         </style>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+
+# Apply the theme
+set_theme(dark_mode)
 
 # ---------------------- DASHBOARD TAB ----------------------
 if selected_tab == "Dashboard":
