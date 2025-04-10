@@ -43,14 +43,6 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
 
-if "trigger_rerun" not in st.session_state:
-    st.session_state.trigger_rerun = False
-
-# Handle rerun safely
-if st.session_state.trigger_rerun:
-    st.session_state.trigger_rerun = False
-    st.experimental_rerun()
-
 # Sidebar menu control
 if not st.session_state.logged_in:
     menu = st.sidebar.selectbox("Menu", ["Login"])
@@ -70,8 +62,8 @@ if menu == "Login":
         if verify_user(username, password):
             st.session_state.logged_in = True
             st.session_state.username = username
-            st.session_state.trigger_rerun = True
             st.success(f"Welcome {username}!")
+            st.rerun()
         else:
             st.error("Invalid username or password.")
 
