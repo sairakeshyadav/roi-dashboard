@@ -4,31 +4,54 @@ import numpy as np
 import plotly.express as px
 from datetime import datetime
 
-# Sidebar config
+# Page config
 st.set_page_config("📊 ROI Dashboard", layout="wide")
 
-# Dark Mode Toggle
+# Dark mode toggle
 st.sidebar.header("🛠️ Display Settings")
-dark_mode = st.sidebar.toggle("🌙 Dark Mode", value=False)
+dark_mode = st.sidebar.toggle("🌙 Enable Dark Mode", value=False)
 
-# Theme setting
-theme = "plotly_dark" if dark_mode else "plotly_white"
-bg_color = "#1e1e1e" if dark_mode else "#f9f9f9"
-font_color = "white" if dark_mode else "black"
+# Apply custom CSS for light/dark mode
+if dark_mode:
+    st.markdown(
+        """
+        <style>
+        body { background-color: #121212; color: white; }
+        .stApp { background-color: #121212; }
+        .block-container { background-color: #1e1e1e; color: white; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    theme = "plotly_dark"
+    text_color = "white"
+else:
+    st.markdown(
+        """
+        <style>
+        body { background-color: #ffffff; color: black; }
+        .stApp { background-color: #ffffff; }
+        .block-container { background-color: #f9f9f9; color: black; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    theme = "plotly_white"
+    text_color = "black"
 
 # File uploader
 st.sidebar.header("📂 Upload Your File")
 uploaded_file = st.sidebar.file_uploader("Upload Excel or CSV", type=["xlsx", "csv"])
 
-# Manual Date Range Filter
+# Manual date input
 st.sidebar.subheader("📅 Filter by Date Range")
 start_date = st.sidebar.date_input("Start Date", datetime(2024, 1, 1))
 end_date = st.sidebar.date_input("End Date", datetime.now())
 
-# Main title
-st.markdown(f"<h1 style='text-align: center; color:{font_color}'>📊 ROI Dashboard</h1>", unsafe_allow_html=True)
+# Page title
+st.markdown(f"<h1 style='text-align: center; color:{text_color}'>📊 ROI Dashboard</h1>", unsafe_allow_html=True)
 
-# Load and preprocess data
+# Load data function
 def load_data(file):
     if file.name.endswith('.csv'):
         df = pd.read_csv(file)
@@ -43,81 +66,59 @@ def load_data(file):
     df['Revenue/Conversion'] = df['Revenue'] / df['Conversions']
     return df
 
+# Process data
 if uploaded_file:
     df = load_data(uploaded_file)
     df = df[(df['Date'] >= pd.to_datetime(start_date)) & (df['Date'] <= pd.to_datetime(end_date))]
 
-    with st.expander("📋 View Raw Data"):
-        st.dataframe(df, use_container_width=True)
+    st.markdown("### 📋 Data Preview")
+    st.dataframe(df, use_container_width=True)
 
+    # Campaign selection
     campaigns = df['Campaign'].unique()
-    selected_campaigns = st.sidebar.multiselect("🎯 Filter by Campaign", campaigns, default=campaigns)
+    selected_campaigns = st.sidebar.multiselect("🎯 Select Campaigns", campaigns, default=campaigns)
     df = df[df['Campaign'].isin(selected_campaigns)]
-
-    # Suggest Top Campaigns
-    top_by_roi = df.groupby('Campaign')['ROI (%)'].mean().sort_values(ascending=False).head(3)
-    top_by_revenue = df.groupby('Campaign')['Revenue'].sum().sort_values(ascending=False).head(3)
-    top_by_conversions = df.groupby('Campaign')['Conversions'].sum().sort_values(ascending=False).head(3)
-
-    st.markdown(f"### 🧠 Top Campaigns Suggestions")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("🔥 Top ROI", top_by_roi.idxmax(), f"{top_by_roi.max():.2f}%")
-    col2.metric("💰 Top Revenue", top_by_revenue.idxmax(), f"${top_by_revenue.max():,.2f}")
-    col3.metric("🚀 Top Conversions", top_by_conversions.idxmax(), f"{int(top_by_conversions.max())}")
 
     # KPIs
     st.markdown("### 📈 Key Metrics")
-    kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
-    kpi1.metric("💸 Total Investment", f"${df['Cost'].sum():,.2f}")
-    kpi2.metric("📈 Total Revenue", f"${df['Revenue'].sum():,.2f}")
-    kpi3.metric("💹 Net Profit", f"${df['Profit'].sum():,.2f}")
-    kpi4.metric("📊 Avg ROI", f"{df['ROI (%)'].mean():.2f}%")
-    kpi5.metric("⏳ Annualized ROI", f"{df['Annualized ROI (%)'].mean():.2f}%")
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("💸 Investment", f"${df['Cost'].sum():,.2f}")
+    col2.metric("📈 Revenue", f"${df['Revenue'].sum():,.2f}")
+    col3.metric("💹 Net Profit", f"${df['Profit'].sum():,.2f}")
+    col4.metric("📊 Avg ROI", f"{df['ROI (%)'].mean():.2f}%")
+    col5.metric("📆 Annualized ROI", f"{df['Annualized ROI (%)'].mean():.2f}%")
 
-    # ROI Over Time Chart
-    st.markdown("### 📊 ROI Over Time")
-    roi_time = df.groupby('Date')[['Cost', 'Revenue']].sum().reset_index()
-    roi_time['ROI (%)'] = ((roi_time['Revenue'] - roi_time['Cost']) / roi_time['Cost']) * 100
-    fig = px.line(roi_time, x='Date', y='ROI (%)', markers=True, template=theme, title="ROI Over Time")
-    st.plotly_chart(fig, use_container_width=True)
+    # ROI Over Time
+    st.markdown("### 🕒 ROI Over Time")
+    time_grouped = df.groupby('Date')[['Cost', 'Revenue']].sum().reset_index()
+    time_grouped['ROI (%)'] = ((time_grouped['Revenue'] - time_grouped['Cost']) / time_grouped['Cost']) * 100
+    fig_time = px.line(time_grouped, x='Date', y='ROI (%)', markers=True, template=theme)
+    st.plotly_chart(fig_time, use_container_width=True)
 
-    # Campaign Comparison Chart
-    st.markdown("### 📉 Campaign Comparison")
-    camp_perf = df.groupby('Campaign')[['Cost', 'Revenue', 'Conversions']].sum()
-    camp_perf['ROI (%)'] = ((camp_perf['Revenue'] - camp_perf['Cost']) / camp_perf['Cost']) * 100
-    fig2 = px.bar(camp_perf, x=camp_perf.index, y='ROI (%)', template=theme, color='ROI (%)',
-                  title="ROI by Campaign", color_continuous_scale="Teal")
-    st.plotly_chart(fig2, use_container_width=True)
+    # Campaign Performance
+    st.markdown("### 🚀 Campaign Performance")
+    camp_grouped = df.groupby('Campaign')[['Cost', 'Revenue', 'Conversions']].sum().reset_index()
+    camp_grouped['ROI (%)'] = ((camp_grouped['Revenue'] - camp_grouped['Cost']) / camp_grouped['Cost']) * 100
+    fig_camp = px.bar(camp_grouped, x='Campaign', y='ROI (%)', color='ROI (%)', template=theme,
+                      color_continuous_scale='Teal', title="ROI by Campaign")
+    st.plotly_chart(fig_camp, use_container_width=True)
 
 else:
-    st.info("👈 Upload a file to get started, or scroll to use manual ROI calculator.")
+    st.info("👈 Upload a CSV or Excel file to get started.")
+    st.markdown("### Or use the manual ROI calculator below.")
 
-    # Manual ROI Calculator
     st.subheader("🧮 Manual ROI Calculator")
     with st.form("manual_roi"):
         col1, col2 = st.columns(2)
         with col1:
-            manual_cost = st.number_input("💵 Investment", min_value=0.0, format="%.2f")
+            investment = st.number_input("💰 Investment ($)", min_value=0.0, step=100.0)
         with col2:
-            manual_return = st.number_input("💰 Return", min_value=0.0, format="%.2f")
-        submitted = st.form_submit_button("Calculate")
+            returns = st.number_input("📈 Return ($)", min_value=0.0, step=100.0)
+        calc_button = st.form_submit_button("Calculate ROI")
 
-    if submitted:
-        if manual_cost > 0:
-            roi = ((manual_return - manual_cost) / manual_cost) * 100
-            st.success(f"📊 Your ROI is **{roi:.2f}%**")
+    if calc_button:
+        if investment > 0:
+            roi = ((returns - investment) / investment) * 100
+            st.success(f"🎯 Your ROI is: **{roi:.2f}%**")
         else:
-            st.error("Please enter an investment greater than 0.")
-
-    # Sample Format
-    st.markdown("---")
-    st.markdown("### 📁 Sample File Format")
-    st.markdown("""
-    Your uploaded file should contain the following columns:
-    - **Date**
-    - **Campaign**
-    - **Cost**
-    - **Revenue**
-    - **Conversions**
-    """)
-
+            st.warning("Please enter an investment greater than 0.")
