@@ -4,7 +4,7 @@ import bcrypt
 import os
 from datetime import datetime
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.express as px
 
 # ---------- Constants ----------
 USER_FILE = "users.csv"
@@ -105,38 +105,44 @@ elif menu == "File ROI Analysis":
 
     uploaded_file = st.file_uploader("Upload Excel or CSV", type=["xlsx", "csv"])
     if uploaded_file is not None:
-        if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file)
-
-        st.dataframe(df.head())
-
         try:
-            df['Date'] = pd.to_datetime(df['Date'])
-            df['Profit'] = df['Revenue'] - df['Cost']
-            df['ROI (%)'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
-            df['Cost/Conversion'] = df['Cost'] / df['Conversions']
-            df['Revenue/Conversion'] = df['Revenue'] / df['Conversions']
+            df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
+            st.success("✅ File Uploaded Successfully")
+            st.dataframe(df.head())
 
-            st.success("Data Processed Successfully")
-            st.dataframe(df)
+            required_columns = {"Date", "Campaign", "Cost", "Revenue", "Conversions"}
+            if not required_columns.issubset(df.columns):
+                st.error(f"❌ Missing columns: {required_columns - set(df.columns)}")
+            else:
+                df['Date'] = pd.to_datetime(df['Date'])
+                df['Profit'] = df['Revenue'] - df['Cost']
+                df['ROI (%)'] = np.where(df['Cost'] != 0, ((df['Revenue'] - df['Cost']) / df['Cost']) * 100, 0)
+                df['Cost/Conversion'] = np.where(df['Conversions'] != 0, df['Cost'] / df['Conversions'], 0)
+                df['Revenue/Conversion'] = np.where(df['Conversions'] != 0, df['Revenue'] / df['Conversions'], 0)
 
-            roi_summary = df.groupby('Campaign').agg({
-                'Cost': 'sum',
-                'Revenue': 'sum',
-                'Profit': 'sum',
-                'Conversions': 'sum',
-                'ROI (%)': 'mean'
-            }).reset_index()
+                st.success("✅ Data Processed Successfully")
+                st.dataframe(df)
 
-            st.subheader("📊 Campaign ROI Summary")
-            st.dataframe(roi_summary)
+                st.subheader("📈 ROI Over Time")
+                roi_time = df.groupby("Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index()
+                roi_time["ROI (%)"] = np.where(roi_time["Cost"] != 0, ((roi_time["Revenue"] - roi_time["Cost"]) / roi_time["Cost"]) * 100, 0)
+                fig = px.line(roi_time, x="Date", y="ROI (%)", title="ROI (%) Over Time", markers=True)
+                st.plotly_chart(fig, use_container_width=True)
+
+                st.subheader("📊 Campaign ROI Summary")
+                roi_summary = df.groupby("Campaign").agg({
+                    'Cost': 'sum',
+                    'Revenue': 'sum',
+                    'Profit': 'sum',
+                    'Conversions': 'sum'
+                }).reset_index()
+                roi_summary['ROI (%)'] = np.where(roi_summary["Cost"] != 0, ((roi_summary["Revenue"] - roi_summary["Cost"]) / roi_summary["Cost"]) * 100, 0)
+                st.dataframe(roi_summary)
 
         except Exception as e:
-            st.error(f"Error processing data: {e}")
+            st.error(f"⚠️ Error processing file: {e}")
     else:
-        st.info("Upload a file to analyze campaign ROI data.")
+        st.info("📤 Please upload a file to get started.")
 
 # Admin Dashboard
 elif menu == "Admin":
@@ -146,9 +152,8 @@ elif menu == "Admin":
     users_df = load_users()
 
     st.markdown("### 👥 Existing Users")
-    st.dataframe(users_df.drop(columns=["password"]))  # Hide passwords
+    st.dataframe(users_df.drop(columns=["password"]))
 
-    # --- Add New User ---
     st.markdown("### ➕ Add New User")
     new_username = st.text_input("New Username")
     new_password = st.text_input("New Password", type="password")
@@ -162,7 +167,6 @@ elif menu == "Admin":
         else:
             st.warning("Username and password cannot be empty.")
 
-    # --- Reset Password ---
     st.markdown("### 🔁 Reset User Password")
     user_to_reset = st.selectbox("Select user", users_df[users_df.username != "admin"]["username"].tolist())
     new_reset_password = st.text_input("New Password for Selected User", type="password")
@@ -174,7 +178,6 @@ elif menu == "Admin":
         else:
             st.warning("Please provide a valid user and password.")
 
-    # --- Delete User ---
     st.markdown("### ❌ Delete User")
     user_to_delete = st.selectbox("Select user to delete", users_df[users_df.username != "admin"]["username"].tolist())
     if st.button("Delete User"):
