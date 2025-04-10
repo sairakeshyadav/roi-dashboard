@@ -41,12 +41,26 @@ if uploaded_file is not None:
 
     # Sidebar Filter Section
     st.sidebar.subheader("Filters")
+    
+    # Filter by Campaign if available
     if 'Campaign' in df.columns:
         campaigns = df['Campaign'].unique()
         selected_campaigns = st.sidebar.multiselect("Select Campaign(s)", campaigns, default=campaigns)
         df_filtered = df[df['Campaign'].isin(selected_campaigns)]
     else:
         df_filtered = df
+
+    # Add Date Range Filter
+    if 'Date' in df_filtered.columns and not df_filtered.empty:
+        min_date = df_filtered['Date'].min().date()
+        max_date = df_filtered['Date'].max().date()
+        selected_dates = st.sidebar.date_input("Select Date Range", value=[min_date, max_date])
+        if isinstance(selected_dates, tuple) or isinstance(selected_dates, list):
+            start_date, end_date = selected_dates
+            df_filtered = df_filtered[(df_filtered['Date'].dt.date >= start_date) & (df_filtered['Date'].dt.date <= end_date)]
+        else:
+            # If a single date is returned, filter by that date
+            df_filtered = df_filtered[df_filtered['Date'].dt.date == selected_dates]
 
     # Calculate overall ROI and Annualized ROI using the date range
     total_cost = df_filtered['Cost'].sum()
