@@ -136,7 +136,10 @@ if not st.session_state.authenticated:
 
 # ---------- Main App ----------
 st.markdown(f"### Welcome, `{st.session_state.username}`")
-st.markdown("""<button class='logout-button' onclick="window.location.reload()">🚪 Logout</button>""", unsafe_allow_html=True)
+if st.button("🚪 Logout"):
+    st.session_state.authenticated = False
+    st.session_state.username = ""
+    st.experimental_rerun()
 
 is_admin = st.session_state.username == "admin"
 
@@ -180,7 +183,7 @@ with tabs[1]:
             try:
                 reader = PyPDF2.PdfReader(uploaded_file)
                 pdf_text = "".join(page.extract_text() or "" for page in reader.pages)
-                st.markdown(f"<div class='fade-in'><textarea rows='15' cols='80'>{pdf_text}</textarea></div>", unsafe_allow_html=True)
+                st.text_area("PDF Content", pdf_text, height=300)
             except Exception as e:
                 st.error(f"Error reading PDF: {e}")
         elif file_type == "application/json":
@@ -193,7 +196,7 @@ with tabs[1]:
             try:
                 doc = docx.Document(uploaded_file)
                 full_text = "\n".join([para.text for para in doc.paragraphs])
-                st.markdown(f"<div class='fade-in'><textarea rows='15' cols='80'>{full_text}</textarea></div>", unsafe_allow_html=True)
+                st.text_area("DOCX Content", full_text, height=300)
             except Exception as e:
                 st.error(f"Error reading DOCX: {e}")
 
@@ -203,9 +206,17 @@ with tabs[1]:
                 df['ROI'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
                 st.success("✅ ROI calculated and added.")
 
+                avg_roi = df['ROI'].mean()
+                total_rev = df['Revenue'].sum()
+                st.metric("Average ROI", f"{avg_roi:.2f}%")
+                st.metric("Total Revenue", f"${total_rev:,.2f}")
+
                 st.markdown("#### 📊 ROI Visualization")
                 fig = px.bar(df, x=df.index, y='ROI', title="ROI by Row", color='ROI', color_continuous_scale='Blues')
                 st.plotly_chart(fig, use_container_width=True)
+
+                csv_data = df.to_csv(index=False).encode('utf-8')
+                st.download_button("Download Processed ROI Data", csv_data, "roi_processed.csv", "text/csv")
 
 # ---------- Admin Panel ----------
 if is_admin:
