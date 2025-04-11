@@ -165,7 +165,7 @@ if is_admin:
         "📈 User Activity",      
     ])
     
-
+tabs = st.tabs(all_tabs)
 
 # ---------- ROI Calculator ----------
 with tabs[0]:
