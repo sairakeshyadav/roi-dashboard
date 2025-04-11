@@ -163,7 +163,6 @@ if is_admin:
     all_tabs.extend([
         "👨‍💼 Admin Panel", 
         "📈 User Activity", 
-        "🗕️ Export Data"
     ])
 
 tabs = st.tabs(all_tabs)
