@@ -162,8 +162,7 @@ all_tabs = [
 if is_admin:
     all_tabs.extend([
         "👨‍💼 Admin Panel", 
-        "📈 User Activity", 
-        "🗕️ Export Data"
+        "📈 User Activity",      
     ])
 
 
@@ -246,8 +245,7 @@ with tabs[2]:
 if is_admin:
     with tabs[3]:
         ...
-    with tabs[4]:
-        ...
+
 
     st.subheader("👨‍💼 Admin Panel")
 
