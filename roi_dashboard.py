@@ -233,6 +233,31 @@ else:
                 save_user(new_user, new_pass)
                 st.success("User added successfully")
 
+            st.markdown("---")
+            st.subheader("Reset User Password")
+            reset_user = st.text_input("Username to Reset Password")
+            new_reset_pass = st.text_input("New Password", type="password")
+            if st.button("🔁 Reset User Password"):
+                users = load_users()
+                if reset_user in users['username'].values:
+                    users.loc[users['username'] == reset_user, 'password'] = bcrypt.hashpw(new_reset_pass.encode(), bcrypt.gensalt()).decode()
+                    users.to_csv(USER_FILE, index=False)
+                    st.success(f"Password for user '{reset_user}' has been reset.")
+                else:
+                    st.error("User not found.")
+
+            st.markdown("---")
+            st.subheader("Delete User")
+            del_user = st.text_input("Username to Delete")
+            if st.button("❌ Delete User"):
+                users = load_users()
+                if del_user in users['username'].values:
+                    users = users[users['username'] != del_user]
+                    users.to_csv(USER_FILE, index=False)
+                    st.success(f"User '{del_user}' deleted successfully.")
+                else:
+                    st.error("User not found.")
+
         with tabs[3]:
             st.subheader("📊 User Activity Log")
             if os.path.exists(ACTIVITY_LOG_FILE):
