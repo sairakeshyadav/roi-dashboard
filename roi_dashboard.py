@@ -39,7 +39,11 @@ def verify_user(username, password):
     return False
 
 # ---------- App UI ----------
-st.set_page_config(page_title="ROI Dashboard Login", layout="wide")
+st.set_page_config(page_title="ROI Dashboard", layout="wide")
+
+if os.getenv("ENV") == "development":
+    st.session_state.logged_in = True
+    st.session_state.username = "admin"
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -49,20 +53,20 @@ if "logged_in" not in st.session_state:
 if not st.session_state.logged_in:
     st.markdown("""
         <style>
-            .centered-box {
+            .login-container {
                 display: flex;
-                flex-direction: column;
                 justify-content: center;
                 align-items: center;
                 height: 100vh;
             }
-            .stTextInput>div>div>input {
+            .login-box {
                 text-align: center;
+                width: 300px;
             }
         </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("<div class='centered-box'>", unsafe_allow_html=True)
+    st.markdown("<div class='login-container'><div class='login-box'>", unsafe_allow_html=True)
     st.title("🔐 ROI Dashboard Login")
     username = st.text_input("Username", key="login_user")
     password = st.text_input("Password", type="password", key="login_pass")
@@ -79,216 +83,30 @@ if not st.session_state.logged_in:
             else:
                 st.error("Invalid username or password.")
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
     st.stop()
 
-# Main Menu
-menu = None
+# Main Interface
 if st.session_state.logged_in:
-    if st.session_state.username == "admin":
-        menu = st.selectbox("Select View", ["ROI Calculator", "File ROI Analysis", "Admin", "Logout"], label_visibility="collapsed")
-    else:
-        menu = st.selectbox("Select View", ["ROI Calculator", "File ROI Analysis", "Logout"], label_visibility="collapsed")
+    col1, col2 = st.columns([0.85, 0.15])
+    with col1:
+        st.markdown(f"### 👤 Logged in as: `{st.session_state.username}`")
+    with col2:
+        if st.button("🚪 Logout"):
+            st.session_state.logged_in = False
+            st.session_state.username = None
+            st.experimental_rerun()
 
-# Logout Section
-if menu == "Logout":
-    st.session_state.logged_in = False
-    st.session_state.username = None
-    st.success("You have been logged out.")
-    st.stop()
+    tab1, tab2, tab3 = st.tabs(["📈 ROI Calculator", "📂 File ROI Analysis", "🔐 Admin Management"])
 
-# Manual ROI Calculator
-elif menu == "ROI Calculator":
-    st.subheader("📈 Manual ROI Calculator")
+    with tab1:
+        exec(open("manual_roi_calculator.py").read())
 
-    investment = st.number_input("Enter Investment Amount ($)", min_value=0.0, step=100.0)
-    returns = st.number_input("Enter Return Amount ($)", min_value=0.0, step=100.0)
-    start_date = st.date_input("Start Date")
-    end_date = st.date_input("End Date")
+    with tab2:
+        exec(open("file_roi_analysis.py").read())
 
-    if st.button("Calculate ROI"):
-        with st.spinner("Calculating ROI..."):
-            time.sleep(1)
-            if investment > 0:
-                roi = (returns - investment) / investment
-                st.metric("ROI", f"{roi:.2%}")
-
-                days = (end_date - start_date).days
-                if days > 0:
-                    years = days / 365.25
-                    annualized_roi = (1 + roi) ** (1 / years) - 1
-                    st.metric("Annualized ROI", f"{annualized_roi:.2%}")
-                    st.toast("📊 ROI Calculated")
-                    st.balloons()
-                else:
-                    st.warning("End date must be after start date to calculate annualized ROI.")
-            else:
-                st.error("Investment must be greater than 0.")
-
-# File ROI Analysis
-elif menu == "File ROI Analysis":
-    st.subheader("📂 Upload and Analyze ROI Data")
-
-    uploaded_file = st.file_uploader("Upload Excel or CSV", type=["xlsx", "csv"])
-    if uploaded_file is not None:
-        with st.spinner("Processing file..."):
-            time.sleep(1)
-            try:
-                df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file, engine="openpyxl")
-                st.success("✅ File Uploaded Successfully")
-                st.toast("🎉 File Loaded")
-                st.dataframe(df.head())
-
-                required_columns = {"Date", "Campaign", "Cost", "Revenue", "Conversions"}
-                if not required_columns.issubset(df.columns):
-                    st.error(f"❌ Missing columns: {required_columns - set(df.columns)}")
-                else:
-                    with st.spinner("Performing analysis..."):
-                        time.sleep(1)
-                        df['Date'] = pd.to_datetime(df['Date'])
-                        df['Profit'] = df['Revenue'] - df['Cost']
-                        df['ROI (%)'] = np.where(df['Cost'] != 0, ((df['Revenue'] - df['Cost']) / df['Cost']) * 100, 0)
-                        df['Cost/Conversion'] = np.where(df['Conversions'] != 0, df['Cost'] / df['Conversions'], 0)
-                        df['Revenue/Conversion'] = np.where(df['Conversions'] != 0, df['Revenue'] / df['Conversions'], 0)
-
-                        st.success("✅ Data Processed Successfully")
-                        st.toast("📈 Data Analysis Complete")
-                        st.dataframe(df)
-
-                        csv = df.to_csv(index=False)
-                        st.download_button(
-                            label="📥 Download Processed Data as CSV",
-                            data=csv,
-                            file_name="processed_roi_data.csv",
-                            mime="text/csv"
-                        )
-
-                        st.markdown("### 📆 Select Grouping Frequency")
-                        grouping = st.selectbox("Group ROI Over Time By", ["Daily", "Weekly", "Monthly"], index=1)
-
-                        if grouping == "Daily":
-                            df_grouped = df.groupby("Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index()
-                        elif grouping == "Weekly":
-                            df_grouped = df.resample("W-Mon", on="Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index().sort_values("Date")
-                        elif grouping == "Monthly":
-                            df_grouped = df.resample("M", on="Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index().sort_values("Date")
-
-                        df_grouped["ROI (%)"] = np.where(df_grouped["Cost"] != 0, ((df_grouped["Revenue"] - df_grouped["Cost"]) / df_grouped["Cost"]) * 100, 0)
-
-                        st.subheader("📈 ROI Over Time")
-                        fig = px.line(df_grouped, x="Date", y="ROI (%)", title=f"ROI (%) Over Time - {grouping}", markers=True)
-                        st.plotly_chart(fig, use_container_width=True)
-
-                        st.subheader("📊 Campaign ROI Summary")
-                        roi_summary = df.groupby("Campaign").agg({
-                            'Cost': 'sum',
-                            'Revenue': 'sum',
-                            'Profit': 'sum',
-                            'Conversions': 'sum'
-                        }).reset_index()
-                        roi_summary['ROI (%)'] = np.where(roi_summary["Cost"] != 0, ((roi_summary["Revenue"] - roi_summary["Cost"]) / roi_summary["Cost"]) * 100, 0)
-
-                        campaign_dates = df.groupby("Campaign")["Date"].agg(["min", "max"]).reset_index()
-                        campaign_dates["days"] = (campaign_dates["max"] - campaign_dates["min"]).dt.days
-                        campaign_dates["years"] = campaign_dates["days"] / 365.25
-
-                        roi_summary = roi_summary.merge(campaign_dates[["Campaign", "years"]], on="Campaign", how="left")
-                        roi_summary["Annualized ROI (%)"] = np.where(
-                            roi_summary["years"] > 0,
-                            ((roi_summary["ROI (%)"] / 100 + 1) ** (1 / roi_summary["years"]) - 1) * 100,
-                            0
-                        )
-
-                        fig_summary = px.bar(
-                            roi_summary.sort_values("ROI (%)", ascending=False),
-                            x="Campaign",
-                            y="ROI (%)",
-                            color="ROI (%)",
-                            color_continuous_scale="Viridis",
-                            title="📊 ROI by Campaign",
-                            labels={"ROI (%)": "ROI (%)", "Campaign": "Campaign"},
-                        )
-                        fig_summary.update_layout(
-                            xaxis_title="Campaign",
-                            yaxis_title="ROI (%)",
-                            plot_bgcolor="rgba(0,0,0,0)",
-                            paper_bgcolor="rgba(0,0,0,0)",
-                            font=dict(size=14)
-                        )
-                        st.plotly_chart(fig_summary, use_container_width=True)
-
-                        fig_annual = px.bar(
-                            roi_summary.sort_values("Annualized ROI (%)", ascending=False),
-                            x="Campaign",
-                            y="Annualized ROI (%)",
-                            color="Annualized ROI (%)",
-                            color_continuous_scale="Plasma",
-                            title="📈 Annualized ROI by Campaign",
-                            labels={"Annualized ROI (%)": "Annualized ROI (%)", "Campaign": "Campaign"},
-                        )
-                        fig_annual.update_layout(
-                            xaxis_title="Campaign",
-                            yaxis_title="Annualized ROI (%)",
-                            plot_bgcolor="rgba(0,0,0,0)",
-                            paper_bgcolor="rgba(0,0,0,0)",
-                            font=dict(size=14)
-                        )
-                        st.plotly_chart(fig_annual, use_container_width=True)
-                        st.toast("📊 Summary Ready")
-
-                        csv_summary = roi_summary.to_csv(index=False)
-                        st.download_button(
-                            label="📥 Download Campaign Summary",
-                            data=csv_summary,
-                            file_name="campaign_roi_summary.csv",
-                            mime="text/csv"
-                        )
-
-            except Exception as e:
-                st.error(f"⚠️ Error processing file: {e}")
-    else:
-        st.info("📤 Please upload a file to get started.")
-
-# Admin Dashboard
-elif menu == "Admin":
-    st.subheader("🔐 Admin Dashboard")
-    st.write("Manage application users securely.")
-
-    users_df = load_users()
-
-    st.markdown("### 👥 Existing Users")
-    st.dataframe(users_df.drop(columns=["password"]))
-
-    st.markdown("### ➕ Add New User")
-    new_username = st.text_input("New Username")
-    new_password = st.text_input("New Password", type="password")
-    if st.button("Add User"):
-        with st.spinner("Adding user..."):
-            time.sleep(1)
-            if new_username and new_password:
-                if new_username in users_df['username'].values:
-                    st.warning("User already exists.")
-                else:
-                    save_user(new_username, new_password)
-                    st.success(f"User '{new_username}' added.")
-                    st.toast("🧑‍💼 New user added!")
-            else:
-                st.warning("Username and password cannot be empty.")
-
-    st.markdown("### 🔁 Reset User Password")
-    user_to_reset = st.selectbox("Select user", users_df[users_df.username != "admin"]["username"].tolist())
-    new_reset_password = st.text_input("New Password for Selected User", type="password")
-    if st.button("Reset Password"):
-        if user_to_reset and new_reset_password:
-            users_df.loc[users_df["username"] == user_to_reset, "password"] = bcrypt.hashpw(new_reset_password.encode(), bcrypt.gensalt()).decode()
-            users_df.to_csv(USER_FILE, index=False)
-            st.success(f"Password for '{user_to_reset}' has been reset.")
+    with tab3:
+        if st.session_state.username == "admin":
+            exec(open("admin_dashboard.py").read())
         else:
-            st.warning("Please provide a valid user and password.")
-
-    st.markdown("### ❌ Delete User")
-    user_to_delete = st.selectbox("Select user to delete", users_df[users_df.username != "admin"]["username"].tolist())
-    if st.button("Delete User"):
-        users_df = users_df[users_df["username"] != user_to_delete]
-        users_df.to_csv(USER_FILE, index=False)
-        st.success(f"User '{user_to_delete}' deleted. Please refresh the page to see the update.")
+            st.warning("Access Denied: Admins only")
