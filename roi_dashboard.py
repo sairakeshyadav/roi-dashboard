@@ -211,25 +211,25 @@ with tabs[1]:
                 st.metric("Average ROI", f"{avg_roi:.2f}%")
                 st.metric("Total Revenue", f"₹{total_rev:,.2f}")
 
-                st.markdown("#### 🌳 ROI Breakdown Visualization (Treemap)")
+                st.markdown("#### 🌞 ROI Breakdown Visualization (Sunburst Chart)")
                 if 'Category' in df.columns:
-                    fig = px.treemap(
+                    fig = px.sunburst(
                         df,
                         path=['Category'],
                         values='Revenue',
                         color='ROI',
                         color_continuous_scale='RdBu',
-                        title="Treemap of ROI by Category"
+                        title="Sunburst Chart of ROI by Category"
                     )
                 else:
                     df['Index'] = df.index.astype(str)
-                    fig = px.treemap(
+                    fig = px.sunburst(
                         df,
                         path=['Index'],
                         values='Revenue',
                         color='ROI',
                         color_continuous_scale='RdBu',
-                        title="Treemap of ROI by Entry"
+                        title="Sunburst Chart of ROI by Entry"
                     )
                 st.plotly_chart(fig, use_container_width=True)
 
