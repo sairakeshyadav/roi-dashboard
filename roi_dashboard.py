@@ -159,7 +159,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'login_trigger' not in st.session_state:
+    st.session_state.login_trigger = False
+
+if not st.session_state.logged_in:
     st.markdown('<div class="login-container"><div class="login-box">', unsafe_allow_html=True)
     st.title("🔐 ROI Dashboard Login")
     username = st.text_input("Username")
@@ -168,12 +173,17 @@ if 'logged_in' not in st.session_state or not st.session_state.logged_in:
 
     if login_btn:
         if verify_user(username, password):
-            st.session_state.logged_in = True
             st.session_state.username = username
-            log_user_activity(username, "Logged in")
-            st.experimental_rerun()
+            st.session_state.logged_in = True
+            st.session_state.login_trigger = True
         else:
             st.error("Invalid username or password.")
+
+    if st.session_state.login_trigger:
+        log_user_activity(st.session_state.username, "Logged in")
+        st.session_state.login_trigger = False
+        st.experimental_rerun()
+
     st.markdown('</div></div>', unsafe_allow_html=True)
 else:
     st.markdown(f"<div class='user-display'>👤 {st.session_state.username}</div>", unsafe_allow_html=True)
