@@ -184,7 +184,11 @@ else:
         st.experimental_rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-    tabs = st.tabs(["ROI Calculator", "ROI File Analysis", "Admin Panel", "User Activity", "Export Data"])
+    tab_names = ["ROI Calculator", "ROI File Analysis"]
+    if st.session_state.username == "admin":
+        tab_names.extend(["Admin Panel", "User Activity", "Export Data"])
+
+    tabs = st.tabs(tab_names)
 
     with tabs[0]:
         st.subheader("📈 Manual ROI Calculator")
@@ -210,24 +214,25 @@ else:
                 st.success("ROI calculated and added to the file.")
                 st.dataframe(df)
 
-    with tabs[2]:
-        st.subheader("🔐 Admin Panel")
-        new_user = st.text_input("New Username")
-        new_pass = st.text_input("New Password", type="password")
-        if st.button("Add User"):
-            save_user(new_user, new_pass)
-            st.success("User added successfully")
+    if st.session_state.username == "admin":
+        with tabs[2]:
+            st.subheader("🔐 Admin Panel")
+            new_user = st.text_input("New Username")
+            new_pass = st.text_input("New Password", type="password")
+            if st.button("Add User"):
+                save_user(new_user, new_pass)
+                st.success("User added successfully")
 
-    with tabs[3]:
-        st.subheader("📊 User Activity Log")
-        if os.path.exists(ACTIVITY_LOG_FILE):
-            log_df = pd.read_csv(ACTIVITY_LOG_FILE)
-            st.dataframe(log_df)
-        else:
-            st.info("No activity log found.")
+        with tabs[3]:
+            st.subheader("📊 User Activity Log")
+            if os.path.exists(ACTIVITY_LOG_FILE):
+                log_df = pd.read_csv(ACTIVITY_LOG_FILE)
+                st.dataframe(log_df)
+            else:
+                st.info("No activity log found.")
 
-    with tabs[4]:
-        st.subheader("⬇️ Export Data")
-        if os.path.exists(ACTIVITY_LOG_FILE):
-            with open(ACTIVITY_LOG_FILE, "rb") as f:
-                st.download_button("Download Activity Log", f, file_name="activity_log.csv")
+        with tabs[4]:
+            st.subheader("⬇️ Export Data")
+            if os.path.exists(ACTIVITY_LOG_FILE):
+                with open(ACTIVITY_LOG_FILE, "rb") as f:
+                    st.download_button("Download Activity Log", f, file_name="activity_log.csv")
