@@ -241,3 +241,45 @@ with tabs[2]:
     st.subheader("📅 Monthly ROI Trends")
     st.info("Coming soon with detailed visualizations!")
 
+if is_admin:
+    with tabs[3]:
+        ...
+
+
+    st.subheader("👨‍💼 Admin Panel")
+
+    st.markdown("### ➕ Add New User")
+    new_username = st.text_input("New Username")
+    new_password = st.text_input("New Password", type="password")
+    if st.button("Add User"):
+        if new_username and new_password:
+            existing_users = load_users()
+            if new_username in existing_users['username'].values:
+                st.warning("Username already exists.")
+            else:
+                save_user(new_username, new_password)
+                st.success(f"User `{new_username}` added successfully.")
+        else:
+            st.error("Please fill both username and password.")
+
+    st.markdown("---")
+    st.markdown("### 🔧 Manage Existing Users")
+    users = load_users()
+    selected_user = st.selectbox("Select User to Manage", users['username'])
+    new_pass = st.text_input("Reset Password", type="password", key="admin_reset_password")
+    if st.button("🔁 Reset Password"):
+        reset_password(selected_user, new_pass)
+        st.success("Password reset successful")
+
+    if st.button("❌ Delete User"):
+        delete_user(selected_user)
+        st.success("User deleted")
+
+
+    with tabs[4]:
+        st.subheader("📈 User Activity")
+        if os.path.exists(ACTIVITY_LOG_FILE):
+            logs = pd.read_csv(ACTIVITY_LOG_FILE)
+            st.dataframe(logs)
+        else:
+            st.warning("No activity log found.")
