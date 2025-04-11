@@ -241,39 +241,42 @@ with tabs[2]:
     st.subheader("📅 Monthly ROI Trends")
     st.info("Coming soon with detailed visualizations!")
 
+# ---------- Admin Panel ----------
 if is_admin:
-    with tabs[3]:
-        ...
+    with admin_tab:
+        st.header("👨‍💼 Admin Panel")
 
+        st.subheader("Add New User")
+        new_username = st.text_input("New Username", key="add_user_name")
+        new_password = st.text_input("New Password", type="password", key="add_user_pass")
+        if st.button("Add User", key="add_user_btn"):
+            if new_username and new_password:
+                existing_users = load_users()
+                if new_username in existing_users['username'].values:
+                    st.warning("Username already exists.")
+                else:
+                    save_user(new_username, new_password)
+                    st.success(f"User {new_username} added successfully.")
 
-    st.subheader("👨‍💼 Admin Panel")
+        st.subheader("Manage Existing Users")
+        users = load_users()
+        selected_user = st.selectbox("Select User", users['username'], key="select_user")
+        new_pass = st.text_input("Reset Password", type="password", key="reset_pass")
+        if st.button("Reset Password", key="reset_btn"):
+            reset_password(selected_user, new_pass)
+            st.success("Password reset successfully.")
 
-    st.markdown("### ➕ Add New User")
-    new_username = st.text_input("New Username")
-    new_password = st.text_input("New Password", type="password")
-    if st.button("Add User"):
-        if new_username and new_password:
-            existing_users = load_users()
-            if new_username in existing_users['username'].values:
-                st.warning("Username already exists.")
-            else:
-                save_user(new_username, new_password)
-                st.success(f"User `{new_username}` added successfully.")
+        if st.button("Delete User", key="delete_btn"):
+            delete_user(selected_user)
+            st.success("User deleted successfully.")
+
+    with activity_tab:
+        st.header("📈 User Activity")
+        if os.path.exists(ACTIVITY_LOG_FILE):
+            logs = pd.read_csv(ACTIVITY_LOG_FILE)
+            st.dataframe(logs)
         else:
-            st.error("Please fill both username and password.")
-
-    st.markdown("---")
-    st.markdown("### 🔧 Manage Existing Users")
-    users = load_users()
-    selected_user = st.selectbox("Select User to Manage", users['username'])
-    new_pass = st.text_input("Reset Password", type="password", key="admin_reset_password")
-    if st.button("🔁 Reset Password"):
-        reset_password(selected_user, new_pass)
-        st.success("Password reset successful")
-
-    if st.button("❌ Delete User"):
-        delete_user(selected_user)
-        st.success("User deleted")
+            st.warning("No user activity found.")
 
 
     with tabs[4]:
