@@ -204,25 +204,36 @@ with tabs[1]:
             if 'Cost' in df.columns and 'Revenue' in df.columns:
                 df['ROI'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
 
-                with st.container():
-                    st.markdown("""
-                        <div class="fade-in" style="padding: 1rem; background-color: #f9f9f9; border-radius: 12px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
-                            <h4 style="color: #4a4a4a;">🔍 ROI Summary</h4>
+                st.markdown("""
+                    <div class="fade-in" style="padding: 1rem; background-color: #f9f9f9; border-radius: 12px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
+                        <h4 style="color: #4a4a4a;">🔍 ROI Summary</h4>
+                """, unsafe_allow_html=True)
+
+                avg_roi = df['ROI'].mean()
+                total_rev = df['Revenue'].sum()
+                total_cost = df['Cost'].sum()
+
+                st.markdown(f"""
+                    <div style="margin-bottom: 1rem;">
+                        <span style="font-size:18px;">✅ <strong>Total Revenue:</strong> ₹{total_rev:,.2f}</span><br>
+                        <span style="font-size:18px;">💸 <strong>Total Cost:</strong> ₹{total_cost:,.2f}</span><br>
+                        <span style="font-size:18px;">📈 <strong>Average ROI:</strong> {avg_roi:.2f}%</span>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                for _, row in df.groupby(df.columns[0]).agg({'Cost': 'sum', 'Revenue': 'sum'}).reset_index().iterrows():
+                    roi = ((row['Revenue'] - row['Cost']) / row['Cost']) * 100 if row['Cost'] else 0
+                    st.markdown(f"""
+                        <div class="fade-in" style="margin: 10px 0; padding: 0.8rem; background-color: #ffffff; border-left: 5px solid #4a90e2; border-radius: 8px; box-shadow: 0px 2px 6px rgba(0,0,0,0.05);">
+                            <strong>📌 {row[0]}</strong><br>
+                            Revenue: ₹{row['Revenue']:,.2f} | Cost: ₹{row['Cost']:,.2f} | ROI: <span style="color:#28a745;">{roi:.2f}%</span>
+                        </div>
                     """, unsafe_allow_html=True)
 
-                    avg_roi = df['ROI'].mean()
-                    total_rev = df['Revenue'].sum()
-                    total_cost = df['Cost'].sum()
-
-                    st.write(f"✅ **Total Revenue**: ₹{total_rev:,.2f}")
-                    st.write(f"💸 **Total Cost**: ₹{total_cost:,.2f}")
-                    st.write(f"📈 **Average ROI**: {avg_roi:.2f}%")
-
-                    st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
 
                 csv_data = df.to_csv(index=False).encode('utf-8')
                 st.download_button("⬇️ Download ROI Data", csv_data, "roi_processed.csv", "text/csv")
-
 
 
 
