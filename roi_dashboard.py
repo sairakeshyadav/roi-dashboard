@@ -205,6 +205,20 @@ with tabs[1]:
             df['ROI'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
             grouped = df.groupby("Campaign").agg({"Cost": "sum", "Revenue": "sum", "ROI": "mean"}).reset_index()
             grouped = grouped.sort_values(by="ROI", ascending=False)
+
+            total_cost = grouped['Cost'].sum()
+            total_revenue = grouped['Revenue'].sum()
+            total_roi = ((total_revenue - total_cost) / total_cost) * 100 if total_cost != 0 else 0
+
+            st.markdown(f"""
+                <div class="fade-in" style="margin-top: 1rem; padding: 1rem; background-color: #e3f2fd; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                    <h3 style="color:#1565c0;">📈 Total Summary</h3>
+                    <p><strong>Total Revenue:</strong> ₹{total_revenue:,.2f}</p>
+                    <p><strong>Total Cost:</strong> ₹{total_cost:,.2f}</p>
+                    <p><strong>Total ROI:</strong> <span style="color:#2e7d32; font-weight:bold;">{total_roi:.2f}%</span></p>
+                </div>
+            """, unsafe_allow_html=True)
+
             for _, row in grouped.iterrows():
                 if isinstance(row['Campaign'], str) and not row['Campaign'].startswith("202"):
                     st.markdown(f"""
@@ -215,6 +229,7 @@ with tabs[1]:
                             <p><strong>ROI:</strong> <span style="color:#28a745; font-weight:bold;">{row['ROI']:.2f}%</span></p>
                         </div>
                     """, unsafe_allow_html=True)
+
             csv = grouped.to_csv(index=False).encode('utf-8')
             st.download_button("Download ROI Summary", csv, "roi_summary.csv", "text/csv")
 
