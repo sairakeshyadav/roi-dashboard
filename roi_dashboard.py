@@ -158,6 +158,7 @@ all_tabs = [
     "📊 ROI Calculator", 
     "📂 ROI File Analysis", 
     "📅 Monthly ROI Trends"
+       ]
 if is_admin:
     all_tabs.extend([
         "👨‍💼 Admin Panel", 
