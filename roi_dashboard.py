@@ -144,7 +144,7 @@ is_admin = st.session_state.username == "admin"
 # ---------- Tabs ----------
 all_tabs = ["📊 ROI Calculator", "📂 ROI File Analysis"]
 if is_admin:
-    all_tabs.extend(["👨‍💼 Admin Panel", "📈 User Activity", "📥 Export Data"])
+    all_tabs.extend(["👨‍💼 Admin Panel", "📈 User Activity", "📅 Export Data"])
 
 tabs = st.tabs(all_tabs)
 
@@ -221,12 +221,15 @@ with tabs[1]:
                     </div>
                 """, unsafe_allow_html=True)
 
-                for _, row in df.groupby(df.columns[0]).agg({'Cost': 'sum', 'Revenue': 'sum'}).reset_index().iterrows():
-                    roi = ((row['Revenue'] - row['Cost']) / row['Cost']) * 100 if row['Cost'] else 0
+                grouped = df.groupby(df.columns[0]).agg({'Cost': 'sum', 'Revenue': 'sum'}).reset_index()
+                grouped['ROI'] = ((grouped['Revenue'] - grouped['Cost']) / grouped['Cost']) * 100
+                grouped = grouped.sort_values(by='ROI', ascending=False)
+
+                for _, row in grouped.iterrows():
                     st.markdown(f"""
                         <div class="fade-in" style="margin: 10px 0; padding: 0.8rem; background-color: #ffffff; border-left: 5px solid #4a90e2; border-radius: 8px; box-shadow: 0px 2px 6px rgba(0,0,0,0.05);">
                             <strong>📌 {row[0]}</strong><br>
-                            Revenue: ₹{row['Revenue']:,.2f} | Cost: ₹{row['Cost']:,.2f} | ROI: <span style="color:#28a745;">{roi:.2f}%</span>
+                            Revenue: ₹{row['Revenue']:,.2f} | Cost: ₹{row['Cost']:,.2f} | ROI: <span style="color:#28a745;">{row['ROI']:.2f}%</span>
                         </div>
                     """, unsafe_allow_html=True)
 
