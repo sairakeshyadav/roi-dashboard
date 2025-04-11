@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 import time
 
 # ---------- Constants ----------
@@ -150,7 +151,15 @@ elif menu == "File ROI Analysis":
                             'Conversions': 'sum'
                         }).reset_index()
                         roi_summary['ROI (%)'] = np.where(roi_summary["Cost"] != 0, ((roi_summary["Revenue"] - roi_summary["Cost"]) / roi_summary["Cost"]) * 100, 0)
-                        st.dataframe(roi_summary)
+
+                        campaign_fig = go.Figure(data=[
+                            go.Table(
+                                header=dict(values=list(roi_summary.columns), fill_color='lightblue', align='left'),
+                                cells=dict(values=[roi_summary[col] for col in roi_summary.columns], fill_color='lavender', align='left')
+                            )
+                        ])
+
+                        st.plotly_chart(campaign_fig, use_container_width=True)
                         st.toast("📊 Summary Ready")
 
             except Exception as e:
