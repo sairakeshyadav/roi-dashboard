@@ -228,7 +228,7 @@ else:
         with tabs[2]:
             st.subheader("🔐 Admin Panel")
             new_user = st.text_input("New Username")
-            new_pass = st.text_input("New Password", type="password")
+            new_pass = st.text_input("New Password", type="password", key="add_user_pass")
             if st.button("Add User"):
                 save_user(new_user, new_pass)
                 st.success("User added successfully")
@@ -236,7 +236,7 @@ else:
             st.markdown("---")
             st.subheader("Reset User Password")
             reset_user = st.text_input("Username to Reset Password")
-            new_reset_pass = st.text_input("New Password", type="password")
+            new_reset_pass = st.text_input("New Password", type="password", key="reset_user_pass")
             if st.button("🔁 Reset User Password"):
                 users = load_users()
                 if reset_user in users['username'].values:
