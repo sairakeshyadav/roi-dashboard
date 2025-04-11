@@ -209,7 +209,7 @@ with tabs[1]:
                 avg_roi = df['ROI'].mean()
                 total_rev = df['Revenue'].sum()
                 st.metric("Average ROI", f"{avg_roi:.2f}%")
-                st.metric("Total Revenue", f"${total_rev:,.2f}")
+                st.metric("Total Revenue", f"₹{total_rev:,.2f}")
 
                 st.markdown("#### 📊 ROI Visualization")
                 fig = px.bar(df, x=df.index, y='ROI', title="ROI by Row", color='ROI', color_continuous_scale='Blues')
@@ -220,6 +220,7 @@ with tabs[1]:
 
 # Other admin tabs unchanged (already implemented)
 # They will remain active for admin and work as before
+
 
 
 # ---------- Admin Panel ----------
