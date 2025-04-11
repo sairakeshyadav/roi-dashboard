@@ -40,6 +40,17 @@ def verify_user(username, password):
         return bcrypt.checkpw(password.encode(), user.iloc[0].password.encode())
     return False
 
+def reset_password(username, new_password):
+    users = load_users()
+    hashed_pw = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    users.loc[users.username == username, 'password'] = hashed_pw
+    users.to_csv(USER_FILE, index=False)
+
+def delete_user(username):
+    users = load_users()
+    users = users[users.username != username]
+    users.to_csv(USER_FILE, index=False)
+
 def log_user_activity(user, action):
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_df = pd.DataFrame([[timestamp, user, action]], columns=["Timestamp", "User", "Action"])
@@ -143,155 +154,93 @@ if st.button("🚪 Logout"):
 is_admin = st.session_state.username == "admin"
 
 # ---------- Tabs ----------
-all_tabs = ["📊 ROI Calculator", "📂 ROI File Analysis"]
+all_tabs = [
+    "📊 ROI Calculator", 
+    "📂 ROI File Analysis", 
+    "📅 Monthly ROI Trends"
+]
 if is_admin:
-    all_tabs.extend(["👨‍💼 Admin Panel", "📈 User Activity", "📅 Export Data"])
+    all_tabs.extend([
+        "👨‍💼 Admin Panel", 
+        "📈 User Activity", 
+        "🗕️ Export Data"
+    ])
 
 tabs = st.tabs(all_tabs)
 
-# ---------- ROI Calculator ----------
+# ROI Calculator Tab
 with tabs[0]:
     st.subheader("📊 ROI Calculator")
-    cost = st.number_input("Enter Cost", min_value=0.0)
-    revenue = st.number_input("Enter Revenue", min_value=0.0)
-    date_range = st.date_input("Select Date Range", [])
-
+    cost = st.number_input("Enter Campaign Cost", min_value=0.0, format="%.2f")
+    revenue = st.number_input("Enter Campaign Revenue", min_value=0.0, format="%.2f")
     if st.button("Calculate ROI"):
-        if cost == 0:
-            st.error("Cost cannot be zero.")
-        else:
+        if cost > 0:
             roi = ((revenue - cost) / cost) * 100
-            st.success(f"ROI: {roi:.2f}%")
-            if date_range:
-                st.info(f"Analysis from {date_range[0]} to {date_range[-1]}")
+            st.success(f"ROI is {roi:.2f}%")
+        else:
+            st.error("Cost must be greater than 0")
 
-# ---------- ROI File Analysis ----------
+# ROI File Analysis Tab
 with tabs[1]:
     st.subheader("📂 ROI File Analysis")
-    uploaded_file = st.file_uploader("Upload a file", type=["csv", "xlsx", "pdf", "docx", "json"])
+    uploaded_file = st.file_uploader("Upload File", type=["csv", "xlsx", "pdf", "docx"], key="roi_analysis")
 
     if uploaded_file:
-        file_type = uploaded_file.type
+        ext = uploaded_file.name.split(".")[-1]
         df = None
-
-        if file_type == "text/csv":
+        if ext == "csv":
             df = pd.read_csv(uploaded_file)
-        elif file_type in ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"]:
+        elif ext == "xlsx":
             df = pd.read_excel(uploaded_file)
-        elif file_type == "application/pdf":
-            try:
-                reader = PyPDF2.PdfReader(uploaded_file)
-                pdf_text = "".join(page.extract_text() or "" for page in reader.pages)
-                st.text_area("📄 PDF Content", pdf_text, height=300)
-            except Exception as e:
-                st.error(f"❌ Error reading PDF: {e}")
-        elif file_type == "application/json":
-            try:
-                data = pd.read_json(uploaded_file)
-                df = pd.json_normalize(data)
-            except Exception as e:
-                st.error(f"❌ Error reading JSON: {e}")
-        elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            try:
-                doc = docx.Document(uploaded_file)
-                full_text = "\n".join([para.text for para in doc.paragraphs])
-                st.text_area("📄 DOCX Content", full_text, height=300)
-            except Exception as e:
-                st.error(f"❌ Error reading DOCX: {e}")
+        elif ext == "pdf":
+            reader = PyPDF2.PdfReader(uploaded_file)
+            text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
+            st.text_area("PDF Content", text)
+        elif ext == "docx":
+            doc = docx.Document(uploaded_file)
+            text = "\n".join([p.text for p in doc.paragraphs])
+            st.text_area("Word Document Content", text)
 
-        if df is not None:
-            st.dataframe(df)
-
-            if 'Cost' in df.columns and 'Revenue' in df.columns:
-                df['ROI'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
-
-                avg_roi = df['ROI'].mean()
-                total_rev = df['Revenue'].sum()
-                total_cost = df['Cost'].sum()
-
-                # Animated summary cards using HTML and CSS
-                st.markdown("""
-                <div style="display: flex; gap: 2rem; justify-content: center; margin-bottom: 20px;">
-                    <div style="background: #e1f5fe; padding: 1rem 2rem; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); text-align:center; animation: fadeIn 1s ease-in;">
-                        <h4>Total Revenue</h4>
-                        <h2 style="color: #00796b;">₹{:.2f}</h2>
+        if df is not None and {'Cost', 'Revenue', 'Campaign'}.issubset(df.columns):
+            df['ROI'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
+            grouped = df.groupby("Campaign").agg({"Cost": "sum", "Revenue": "sum", "ROI": "mean"}).reset_index()
+            grouped = grouped.sort_values(by="ROI", ascending=False)
+            for _, row in grouped.iterrows():
+                st.markdown(f"""
+                    <div class="fade-in" style="margin: 10px 0; padding: 1rem; background-color: #ffffff; border-left: 5px solid #2196f3; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h4>📌 {row['Campaign']}</h4>
+                        <p><strong>Revenue:</strong> ₹{row['Revenue']:,.2f}</p>
+                        <p><strong>Cost:</strong> ₹{row['Cost']:,.2f}</p>
+                        <p><strong>ROI:</strong> <span style="color:#28a745; font-weight:bold;">{row['ROI']:.2f}%</span></p>
                     </div>
-                    <div style="background: #ffecb3; padding: 1rem 2rem; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); text-align:center; animation: fadeIn 1.3s ease-in;">
-                        <h4>Total Cost</h4>
-                        <h2 style="color: #e65100;">₹{:.2f}</h2>
-                    </div>
-                    <div style="background: #e8f5e9; padding: 1rem 2rem; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); text-align:center; animation: fadeIn 1.6s ease-in;">
-                        <h4>Average ROI</h4>
-                        <h2 style="color: #2e7d32;">{:.2f}%</h2>
-                    </div>
-                </div>
-                """.format(total_rev, total_cost, avg_roi), unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+            csv = grouped.to_csv(index=False).encode('utf-8')
+            st.download_button("Download ROI Summary", csv, "roi_summary.csv", "text/csv")
 
-                grouped = df.groupby(df.columns[0]).agg({'Cost': 'sum', 'Revenue': 'sum'}).reset_index()
-                grouped['ROI'] = ((grouped['Revenue'] - grouped['Cost']) / grouped['Cost']) * 100
-                grouped = grouped.sort_values(by='ROI', ascending=False)
+# Monthly ROI Trends Tab
+with tabs[2]:
+    st.subheader("📅 Monthly ROI Trends")
+    st.info("Coming soon with detailed visualizations!")
 
-                for _, row in grouped.iterrows():
-                    st.markdown(f"""
-                        <div class="fade-in" style="margin: 10px 0; padding: 0.8rem; background-color: #ffffff; border-left: 5px solid #4a90e2; border-radius: 8px; box-shadow: 0px 2px 6px rgba(0,0,0,0.05);">
-                            <strong>📌 {row[0]}</strong><br>
-                            Revenue: ₹{row['Revenue']:,.2f} | Cost: ₹{row['Cost']:,.2f} | ROI: <span style="color:#28a745;">{row['ROI']:.2f}%</span>
-                        </div>
-                    """, unsafe_allow_html=True)
-
-                csv_data = df.to_csv(index=False).encode('utf-8')
-                st.download_button("⬇️ Download ROI Data", csv_data, "roi_processed.csv", "text/csv")
-
-
-
-
-
-# ---------- Admin Panel ----------
-if is_admin:
-    with tabs[2]:
-        st.subheader("👨‍💼 Admin Panel")
-        st.markdown("### ➕ Add User")
-        new_user = st.text_input("New Username")
-        new_pass = st.text_input("New Password", type="password")
-        if st.button("Create User"):
-            if new_user and new_pass:
-                save_user(new_user, new_pass)
-                st.success(f"User {new_user} added.")
-
-        st.markdown("### 🔁 Reset User Password")
-        reset_user = st.text_input("Username to Reset")
-        new_reset_pass = st.text_input("New Password", type="password", key="reset_pass")
-        if st.button("Reset Password"):
-            users = load_users()
-            if reset_user in users['username'].values:
-                users.loc[users.username == reset_user, 'password'] = bcrypt.hashpw(new_reset_pass.encode(), bcrypt.gensalt()).decode()
-                users.to_csv(USER_FILE, index=False)
-                st.success("Password reset successful.")
-
-        st.markdown("### ❌ Delete User")
-        del_user = st.text_input("Username to Delete")
-        if st.button("Delete User"):
-            users = load_users()
-            if del_user in users['username'].values:
-                users = users[users.username != del_user]
-                users.to_csv(USER_FILE, index=False)
-                st.success(f"User {del_user} deleted.")
-
-# ---------- User Activity ----------
+# Admin Panel
 if is_admin:
     with tabs[3]:
+        st.subheader("👨‍💼 Admin Panel")
+        users = load_users()
+        selected_user = st.selectbox("Select User to Manage", users['username'])
+        new_pass = st.text_input("Reset Password", type="password")
+        if st.button("🔁 Reset Password"):
+            reset_password(selected_user, new_pass)
+            st.success("Password reset successful")
+        if st.button("❌ Delete User"):
+            delete_user(selected_user)
+            st.success("User deleted")
+
+    with tabs[4]:
         st.subheader("📈 User Activity")
         if os.path.exists(ACTIVITY_LOG_FILE):
-            activity_df = pd.read_csv(ACTIVITY_LOG_FILE)
-            st.dataframe(activity_df)
+            logs = pd.read_csv(ACTIVITY_LOG_FILE)
+            st.dataframe(logs)
         else:
-            st.warning("No user activity logged yet.")
+            st.warning("No activity log found.")
 
-# ---------- Export Data ----------
-if is_admin:
-    with tabs[4]:
-        st.subheader("📥 Export Data")
-        if st.button("Download ROI Data as CSV"):
-            dummy_data = pd.DataFrame({"Metric": ["ROI"], "Value": ["N/A"]})
-            csv = dummy_data.to_csv(index=False).encode('utf-8')
-            st.download_button("Download CSV", csv, "roi_data.csv", "text/csv", key='download-csv')
