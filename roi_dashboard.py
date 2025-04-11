@@ -211,38 +211,31 @@ with tabs[1]:
                 st.metric("Average ROI", f"{avg_roi:.2f}%")
                 st.metric("Total Revenue", f"₹{total_rev:,.2f}")
 
-                st.markdown("#### 📈 ROI Animated Visualization")
-                if 'Date' in df.columns:
-                    df['Date'] = pd.to_datetime(df['Date'])
-                    df = df.sort_values('Date')
-                    fig = px.scatter(
-                        df,
-                        x='Date',
-                        y='ROI',
-                        size='Revenue',
-                        color='ROI',
-                        animation_frame=df['Date'].dt.strftime('%Y-%m-%d'),
-                        title="Animated ROI Over Time",
-                        color_continuous_scale='Viridis',
-                        size_max=60
-                    )
-                else:
-                    df['Index'] = df.index
-                    fig = px.scatter(
-                        df,
-                        x='Index',
-                        y='ROI',
-                        size='Revenue',
-                        color='ROI',
-                        title="ROI by Entry",
-                        color_continuous_scale='Plasma',
-                        size_max=60
-                    )
-
+                st.markdown("#### 📈 ROI Visualization")
+                fig = go.Figure()
+                fig.add_trace(go.Barpolar(
+                    r=df['ROI'],
+                    theta=[f"Entry {i}" for i in range(len(df))],
+                    marker_color=df['ROI'],
+                    marker_colorscale='icefire',
+                    marker_line_color="black",
+                    marker_line_width=1,
+                    opacity=0.8,
+                    name="ROI"
+                ))
+                fig.update_layout(
+                    title="Radial ROI Chart",
+                    polar=dict(
+                        radialaxis=dict(visible=True, range=[0, max(df['ROI'].max(), 100)]),
+                        angularaxis=dict(rotation=90, direction="clockwise")
+                    ),
+                    showlegend=False
+                )
                 st.plotly_chart(fig, use_container_width=True)
 
                 csv_data = df.to_csv(index=False).encode('utf-8')
                 st.download_button("Download Processed ROI Data", csv_data, "roi_processed.csv", "text/csv")
+
 
 
 
