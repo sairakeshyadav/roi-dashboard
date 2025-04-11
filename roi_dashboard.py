@@ -8,6 +8,7 @@ import time
 import io
 import PyPDF2
 import docx
+import streamlit.components.v1 as components
 
 # ---------- Constants ----------
 USER_FILE = "users.csv"
@@ -204,22 +205,27 @@ with tabs[1]:
             if 'Cost' in df.columns and 'Revenue' in df.columns:
                 df['ROI'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
 
-                st.markdown("""
-                    <div class="fade-in" style="padding: 1rem; background-color: #f9f9f9; border-radius: 12px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
-                        <h4 style="color: #4a4a4a;">🔍 ROI Summary</h4>
-                """, unsafe_allow_html=True)
-
                 avg_roi = df['ROI'].mean()
                 total_rev = df['Revenue'].sum()
                 total_cost = df['Cost'].sum()
 
-                st.markdown(f"""
-                    <div style="margin-bottom: 1rem;">
-                        <span style="font-size:18px;">✅ <strong>Total Revenue:</strong> ₹{total_rev:,.2f}</span><br>
-                        <span style="font-size:18px;">💸 <strong>Total Cost:</strong> ₹{total_cost:,.2f}</span><br>
-                        <span style="font-size:18px;">📈 <strong>Average ROI:</strong> {avg_roi:.2f}%</span>
+                # Animated summary cards using HTML and CSS
+                st.markdown("""
+                <div style="display: flex; gap: 2rem; justify-content: center; margin-bottom: 20px;">
+                    <div style="background: #e1f5fe; padding: 1rem 2rem; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); text-align:center; animation: fadeIn 1s ease-in;">
+                        <h4>Total Revenue</h4>
+                        <h2 style="color: #00796b;">₹{:.2f}</h2>
                     </div>
-                """, unsafe_allow_html=True)
+                    <div style="background: #ffecb3; padding: 1rem 2rem; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); text-align:center; animation: fadeIn 1.3s ease-in;">
+                        <h4>Total Cost</h4>
+                        <h2 style="color: #e65100;">₹{:.2f}</h2>
+                    </div>
+                    <div style="background: #e8f5e9; padding: 1rem 2rem; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); text-align:center; animation: fadeIn 1.6s ease-in;">
+                        <h4>Average ROI</h4>
+                        <h2 style="color: #2e7d32;">{:.2f}%</h2>
+                    </div>
+                </div>
+                """.format(total_rev, total_cost, avg_roi), unsafe_allow_html=True)
 
                 grouped = df.groupby(df.columns[0]).agg({'Cost': 'sum', 'Revenue': 'sum'}).reset_index()
                 grouped['ROI'] = ((grouped['Revenue'] - grouped['Cost']) / grouped['Cost']) * 100
@@ -233,11 +239,8 @@ with tabs[1]:
                         </div>
                     """, unsafe_allow_html=True)
 
-                st.markdown("</div>", unsafe_allow_html=True)
-
                 csv_data = df.to_csv(index=False).encode('utf-8')
                 st.download_button("⬇️ Download ROI Data", csv_data, "roi_processed.csv", "text/csv")
-
 
 
 
