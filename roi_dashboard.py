@@ -177,87 +177,56 @@ st.markdown("</div>", unsafe_allow_html=True)
 roi_tab, file_tab, admin_tab = st.tabs(["ROI Calculator", "ROI File Analysis", "Admin Management"])
 
 with roi_tab:
-    st.subheader("📈 Manual ROI Calculator")
-    investment = st.number_input("Enter Investment Amount ($)", min_value=0.0, step=100.0)
-    returns = st.number_input("Enter Return Amount ($)", min_value=0.0, step=100.0)
-    start_date = st.date_input("Start Date")
-    end_date = st.date_input("End Date")
-
-    if st.button("Calculate ROI"):
-        if investment > 0:
-            roi = (returns - investment) / investment
-            st.metric("ROI", f"{roi:.2%}")
-            days = (end_date - start_date).days
-            if days > 0:
-                years = days / 365.25
-                annualized_roi = (1 + roi) ** (1 / years) - 1
-                st.metric("Annualized ROI", f"{annualized_roi:.2%}")
-            else:
-                st.warning("End date must be after start date to calculate annualized ROI.")
-        else:
-            st.error("Investment must be greater than 0.")
+    st.header("📈 Manual ROI Calculator")
+    revenue = st.number_input("Enter Revenue", min_value=0.0)
+    cost = st.number_input("Enter Cost", min_value=0.0)
+    if cost > 0:
+        roi = ((revenue - cost) / cost) * 100
+        annual_roi = roi * 12  # Assuming monthly ROI
+        st.metric(label="ROI (%)", value=f"{roi:.2f}%")
+        st.metric(label="Annualized ROI (%)", value=f"{annual_roi:.2f}%")
 
 with file_tab:
-    st.subheader("📂 Upload and Analyze ROI Data")
-    uploaded_file = st.file_uploader("Upload Excel or CSV", type=["xlsx", "csv"])
+    st.header("📁 ROI File Analysis")
+
+    uploaded_file = st.file_uploader("Upload ROI CSV File", type=["csv"])
     if uploaded_file is not None:
         try:
-            df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
-            st.success("✅ File Uploaded Successfully")
+            df = pd.read_csv(uploaded_file)
+            st.success("File uploaded successfully!")
 
-            required_columns = {"Date", "Campaign", "Cost", "Revenue", "Conversions"}
-            if not required_columns.issubset(df.columns):
-                st.error(f"❌ Missing columns: {required_columns - set(df.columns)}")
-            else:
-                df['Date'] = pd.to_datetime(df['Date'])
-                df['Profit'] = df['Revenue'] - df['Cost']
-                df['ROI (%)'] = np.where(df['Cost'] != 0, ((df['Revenue'] - df['Cost']) / df['Cost']) * 100, 0)
-                df['Cost/Conversion'] = np.where(df['Conversions'] != 0, df['Cost'] / df['Conversions'], 0)
-                df['Revenue/Conversion'] = np.where(df['Conversions'] != 0, df['Revenue'] / df['Conversions'], 0)
-                df['Annualized ROI (%)'] = 0.0
-                for i in df.index:
-                    days = (df.loc[i, 'Date'] - df['Date'].min()).days
-                    if days > 0 and df.loc[i, 'Cost'] != 0:
-                        roi = (df.loc[i, 'Revenue'] - df.loc[i, 'Cost']) / df.loc[i, 'Cost']
-                        years = days / 365.25
-                        df.loc[i, 'Annualized ROI (%)'] = (1 + roi) ** (1 / years) - 1
+            st.subheader("🔍 Data Preview")
+            st.dataframe(df.head())
 
-                st.subheader("📊 ROI Over Time")
-                roi_time = df.groupby("Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index()
-                roi_time["ROI (%)"] = np.where(roi_time["Cost"] != 0, ((roi_time["Revenue"] - roi_time["Cost"]) / roi_time["Cost"]) * 100, 0)
-                fig = px.line(roi_time, x="Date", y="ROI (%)", title="ROI (%) Over Time", markers=True)
+            numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
+            if "Revenue" in df.columns and "Cost" in df.columns:
+                df["ROI (%)"] = ((df["Revenue"] - df["Cost"]) / df["Cost"]) * 100
+                df["Annualized ROI (%)"] = df["ROI (%)"] * 12
+
+                st.subheader("📈 ROI Visualizations")
+                x_axis = st.selectbox("Select X-axis", df.columns, index=0)
+                y_axis = st.selectbox("Select Y-axis", ["ROI (%)", "Annualized ROI (%)"])
+                chart_type = st.radio("Choose Chart Type", ["Line", "Bar"], horizontal=True)
+
+                if chart_type == "Line":
+                    fig = px.line(df, x=x_axis, y=y_axis, title=f"{y_axis} over {x_axis}")
+                else:
+                    fig = px.bar(df, x=x_axis, y=y_axis, title=f"{y_axis} by {x_axis}")
+
                 st.plotly_chart(fig, use_container_width=True)
 
-                st.subheader("📈 Campaign ROI Summary")
-                roi_summary = df.groupby("Campaign").agg({
-                    'Cost': 'sum',
-                    'Revenue': 'sum',
-                    'Profit': 'sum',
-                    'Conversions': 'sum'
-                }).reset_index()
-                roi_summary['ROI (%)'] = np.where(roi_summary["Cost"] != 0, ((roi_summary["Revenue"] - roi_summary["Cost"]) / roi_summary["Cost"]) * 100, 0)
+                st.subheader("📊 Summary Statistics")
+                st.write(df[["Revenue", "Cost", "ROI (%)", "Annualized ROI (%)"]].describe())
 
-                for _, row in roi_summary.iterrows():
-                    st.markdown(f"""
-                        <div style='background: linear-gradient(to right, #e3f2fd, #e8f5e9); padding: 1rem; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 1rem;'>
-                            <h4 style='margin-bottom:0.5rem;'>📢 {row['Campaign']}</h4>
-                            <b>Cost:</b> ${row['Cost']:,.2f} | 
-                            <b>Revenue:</b> ${row['Revenue']:,.2f} | 
-                            <b>Profit:</b> ${row['Profit']:,.2f} | 
-                            <b>Conversions:</b> {row['Conversions']} | 
-                            <b>ROI (%):</b> {row['ROI (%)']:.2f}%
-                        </div>
-                    """, unsafe_allow_html=True)
+            else:
+                st.warning("The file must contain 'Revenue' and 'Cost' columns.")
         except Exception as e:
-            st.error(f"⚠️ Error processing file: {e}")
-    else:
-        st.info("📤 Please upload a file to get started.")
+            st.error(f"Error reading file: {e}")
 
 with admin_tab:
     st.subheader("🔐 Admin Dashboard")
-    st.write("Manage application users securely.")
-
     users_df = load_users()
+
     st.markdown("### 👥 Existing Users")
     st.dataframe(users_df.drop(columns=["password"]))
 
@@ -270,7 +239,8 @@ with admin_tab:
                 st.warning("User already exists.")
             else:
                 save_user(new_username, new_password)
-                st.success(f"User '{new_username}' added. Please refresh the page to see the update.")
+                st.success(f"User '{new_username}' added.")
+                st.rerun()
         else:
             st.warning("Username and password cannot be empty.")
 
@@ -279,18 +249,20 @@ with admin_tab:
     if not non_admin_users.empty:
         user_to_reset = st.selectbox("Select user", non_admin_users["username"].tolist())
         new_reset_password = st.text_input("New Password for Selected User", type="password")
-        if st.button("Reset Password"):
+        if st.button("Reset Password", key="reset_pw_btn"):
             if user_to_reset and new_reset_password:
                 users_df.loc[users_df["username"] == user_to_reset, "password"] = bcrypt.hashpw(new_reset_password.encode(), bcrypt.gensalt()).decode()
                 users_df.to_csv(USER_FILE, index=False)
                 st.success(f"Password for '{user_to_reset}' has been reset.")
+                st.rerun()
             else:
                 st.warning("Please provide a valid user and password.")
 
     st.markdown("### ❌ Delete User")
     if not non_admin_users.empty:
         user_to_delete = st.selectbox("Select user to delete", non_admin_users["username"].tolist())
-        if st.button("Delete User"):
+        if st.button("Delete User", key="delete_user_btn"):
             users_df = users_df[users_df["username"] != user_to_delete]
             users_df.to_csv(USER_FILE, index=False)
-            st.success(f"User '{user_to_delete}' deleted. Please refresh the page to see the update.")
+            st.success(f"User '{user_to_delete}' deleted.")
+            st.rerun()
