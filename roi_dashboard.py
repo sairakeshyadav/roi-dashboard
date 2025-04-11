@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 import numpy as np
 import plotly.express as px
+import time
 
 # ---------- Constants ----------
 USER_FILE = "users.csv"
@@ -59,13 +60,16 @@ if menu == "Login":
     password = st.text_input("Password", type="password", key="login_pass")
 
     if st.button("Login"):
-        if verify_user(username, password):
-            st.session_state.logged_in = True
-            st.session_state.username = username
-            st.success(f"Welcome {username}!")
-            st.rerun()
-        else:
-            st.error("Invalid username or password.")
+        with st.spinner("Verifying credentials..."):
+            time.sleep(1)
+            if verify_user(username, password):
+                st.session_state.logged_in = True
+                st.session_state.username = username
+                st.success(f"Welcome {username}!")
+                st.balloons()
+                st.rerun()
+            else:
+                st.error("Invalid username or password.")
 
 # Logout Section
 elif menu == "Logout":
@@ -84,20 +88,22 @@ elif menu == "ROI Calculator":
     end_date = st.date_input("End Date")
 
     if st.button("Calculate ROI"):
-        if investment > 0:
-            roi = (returns - investment) / investment
-            st.metric("ROI", f"{roi:.2%}")
+        with st.spinner("Calculating ROI..."):
+            time.sleep(1)
+            if investment > 0:
+                roi = (returns - investment) / investment
+                st.metric("ROI", f"{roi:.2%}")
 
-            # Annualized ROI
-            days = (end_date - start_date).days
-            if days > 0:
-                years = days / 365.25
-                annualized_roi = (1 + roi) ** (1 / years) - 1
-                st.metric("Annualized ROI", f"{annualized_roi:.2%}")
+                days = (end_date - start_date).days
+                if days > 0:
+                    years = days / 365.25
+                    annualized_roi = (1 + roi) ** (1 / years) - 1
+                    st.metric("Annualized ROI", f"{annualized_roi:.2%}")
+                    st.toast("📊 ROI Calculated")
+                else:
+                    st.warning("End date must be after start date to calculate annualized ROI.")
             else:
-                st.warning("End date must be after start date to calculate annualized ROI.")
-        else:
-            st.error("Investment must be greater than 0.")
+                st.error("Investment must be greater than 0.")
 
 # File ROI Analysis
 elif menu == "File ROI Analysis":
@@ -105,42 +111,45 @@ elif menu == "File ROI Analysis":
 
     uploaded_file = st.file_uploader("Upload Excel or CSV", type=["xlsx", "csv"])
     if uploaded_file is not None:
-        try:
-            df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
-            st.success("✅ File Uploaded Successfully")
-            st.dataframe(df.head())
+        with st.spinner("Processing file..."):
+            time.sleep(1)
+            try:
+                df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file, engine="openpyxl")
+                st.success("✅ File Uploaded Successfully")
+                st.toast("🎉 File Loaded")
+                st.dataframe(df.head())
 
-            required_columns = {"Date", "Campaign", "Cost", "Revenue", "Conversions"}
-            if not required_columns.issubset(df.columns):
-                st.error(f"❌ Missing columns: {required_columns - set(df.columns)}")
-            else:
-                df['Date'] = pd.to_datetime(df['Date'])
-                df['Profit'] = df['Revenue'] - df['Cost']
-                df['ROI (%)'] = np.where(df['Cost'] != 0, ((df['Revenue'] - df['Cost']) / df['Cost']) * 100, 0)
-                df['Cost/Conversion'] = np.where(df['Conversions'] != 0, df['Cost'] / df['Conversions'], 0)
-                df['Revenue/Conversion'] = np.where(df['Conversions'] != 0, df['Revenue'] / df['Conversions'], 0)
+                required_columns = {"Date", "Campaign", "Cost", "Revenue", "Conversions"}
+                if not required_columns.issubset(df.columns):
+                    st.error(f"❌ Missing columns: {required_columns - set(df.columns)}")
+                else:
+                    df['Date'] = pd.to_datetime(df['Date'])
+                    df['Profit'] = df['Revenue'] - df['Cost']
+                    df['ROI (%)'] = np.where(df['Cost'] != 0, ((df['Revenue'] - df['Cost']) / df['Cost']) * 100, 0)
+                    df['Cost/Conversion'] = np.where(df['Conversions'] != 0, df['Cost'] / df['Conversions'], 0)
+                    df['Revenue/Conversion'] = np.where(df['Conversions'] != 0, df['Revenue'] / df['Conversions'], 0)
 
-                st.success("✅ Data Processed Successfully")
-                st.dataframe(df)
+                    st.success("✅ Data Processed Successfully")
+                    st.dataframe(df)
 
-                st.subheader("📈 ROI Over Time")
-                roi_time = df.groupby("Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index()
-                roi_time["ROI (%)"] = np.where(roi_time["Cost"] != 0, ((roi_time["Revenue"] - roi_time["Cost"]) / roi_time["Cost"]) * 100, 0)
-                fig = px.line(roi_time, x="Date", y="ROI (%)", title="ROI (%) Over Time", markers=True)
-                st.plotly_chart(fig, use_container_width=True)
+                    st.subheader("📈 ROI Over Time")
+                    roi_time = df.groupby("Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index()
+                    roi_time["ROI (%)"] = np.where(roi_time["Cost"] != 0, ((roi_time["Revenue"] - roi_time["Cost"]) / roi_time["Cost"]) * 100, 0)
+                    fig = px.line(roi_time, x="Date", y="ROI (%)", title="ROI (%) Over Time", markers=True)
+                    st.plotly_chart(fig, use_container_width=True)
 
-                st.subheader("📊 Campaign ROI Summary")
-                roi_summary = df.groupby("Campaign").agg({
-                    'Cost': 'sum',
-                    'Revenue': 'sum',
-                    'Profit': 'sum',
-                    'Conversions': 'sum'
-                }).reset_index()
-                roi_summary['ROI (%)'] = np.where(roi_summary["Cost"] != 0, ((roi_summary["Revenue"] - roi_summary["Cost"]) / roi_summary["Cost"]) * 100, 0)
-                st.dataframe(roi_summary)
+                    st.subheader("📊 Campaign ROI Summary")
+                    roi_summary = df.groupby("Campaign").agg({
+                        'Cost': 'sum',
+                        'Revenue': 'sum',
+                        'Profit': 'sum',
+                        'Conversions': 'sum'
+                    }).reset_index()
+                    roi_summary['ROI (%)'] = np.where(roi_summary["Cost"] != 0, ((roi_summary["Revenue"] - roi_summary["Cost"]) / roi_summary["Cost"]) * 100, 0)
+                    st.dataframe(roi_summary)
 
-        except Exception as e:
-            st.error(f"⚠️ Error processing file: {e}")
+            except Exception as e:
+                st.error(f"⚠️ Error processing file: {e}")
     else:
         st.info("📤 Please upload a file to get started.")
 
@@ -158,14 +167,17 @@ elif menu == "Admin":
     new_username = st.text_input("New Username")
     new_password = st.text_input("New Password", type="password")
     if st.button("Add User"):
-        if new_username and new_password:
-            if new_username in users_df['username'].values:
-                st.warning("User already exists.")
+        with st.spinner("Adding user..."):
+            time.sleep(1)
+            if new_username and new_password:
+                if new_username in users_df['username'].values:
+                    st.warning("User already exists.")
+                else:
+                    save_user(new_username, new_password)
+                    st.success(f"User '{new_username}' added.")
+                    st.toast("🧑‍💼 New user added!")
             else:
-                save_user(new_username, new_password)
-                st.success(f"User '{new_username}' added. Please refresh the page to see the update.")
-        else:
-            st.warning("Username and password cannot be empty.")
+                st.warning("Username and password cannot be empty.")
 
     st.markdown("### 🔁 Reset User Password")
     user_to_reset = st.selectbox("Select user", users_df[users_df.username != "admin"]["username"].tolist())
