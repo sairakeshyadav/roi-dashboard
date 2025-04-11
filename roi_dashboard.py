@@ -206,14 +206,15 @@ with tabs[1]:
             grouped = df.groupby("Campaign").agg({"Cost": "sum", "Revenue": "sum", "ROI": "mean"}).reset_index()
             grouped = grouped.sort_values(by="ROI", ascending=False)
             for _, row in grouped.iterrows():
-                st.markdown(f"""
-                    <div class="fade-in" style="margin: 10px 0; padding: 1rem; background-color: #ffffff; border-left: 5px solid #2196f3; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                        <h4>📌 {row['Campaign']}</h4>
-                        <p><strong>Revenue:</strong> ₹{row['Revenue']:,.2f}</p>
-                        <p><strong>Cost:</strong> ₹{row['Cost']:,.2f}</p>
-                        <p><strong>ROI:</strong> <span style="color:#28a745; font-weight:bold;">{row['ROI']:.2f}%</span></p>
-                    </div>
-                """, unsafe_allow_html=True)
+                if isinstance(row['Campaign'], str) and not row['Campaign'].startswith("202"):
+                    st.markdown(f"""
+                        <div class="fade-in" style="margin: 10px 0; padding: 1rem; background-color: #ffffff; border-left: 5px solid #2196f3; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            <h4>📌 {row['Campaign']}</h4>
+                            <p><strong>Revenue:</strong> ₹{row['Revenue']:,.2f}</p>
+                            <p><strong>Cost:</strong> ₹{row['Cost']:,.2f}</p>
+                            <p><strong>ROI:</strong> <span style="color:#28a745; font-weight:bold;">{row['ROI']:.2f}%</span></p>
+                        </div>
+                    """, unsafe_allow_html=True)
             csv = grouped.to_csv(index=False).encode('utf-8')
             st.download_button("Download ROI Summary", csv, "roi_summary.csv", "text/csv")
 
