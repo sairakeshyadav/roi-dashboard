@@ -52,8 +52,11 @@ st.set_page_config(page_title="ROI Dashboard", layout="wide")
 
 st.markdown("""
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
         body {
             background: linear-gradient(to right, #e0f7fa, #e1bee7);
+            font-family: 'Inter', sans-serif;
         }
         .stTabs [role="tab"] {
             padding: 0.75rem 1.5rem;
@@ -84,23 +87,46 @@ st.markdown("""
         .login-container {
             display: flex;
             justify-content: center;
-            align-items: flex-start;
+            align-items: center;
             height: 100vh;
-            background: linear-gradient(to right, #4facfe, #00f2fe);
-            padding-top: 80px;
+            background: linear-gradient(135deg, #74ebd5, #9face6);
+            font-family: 'Inter', sans-serif;
         }
         .login-box {
-            background: white;
-            padding: 3rem 2rem;
-            border-radius: 20px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-            width: 350px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 3rem 2.5rem;
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            width: 360px;
+            animation: slideUpFade 0.8s ease-in-out;
             text-align: center;
-            animation: fadeIn 1s ease-in-out;
         }
-        @keyframes fadeIn {
-            0% { opacity: 0; transform: translateY(30px); }
-            100% { opacity: 1; transform: translateY(0); }
+        .login-box input {
+            border-radius: 12px !important;
+            padding: 10px !important;
+        }
+        .stButton > button {
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-weight: bold;
+            background: #6a11cb;
+            background: linear-gradient(to right, #2575fc, #6a11cb);
+            color: white;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .stButton > button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        @keyframes slideUpFade {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         .logout-button {
             position: fixed;
@@ -133,164 +159,118 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-if os.getenv("ENV") == "development":
-    st.session_state.logged_in = True
-    st.session_state.username = "admin"
+if 'logged_in' in st.session_state and st.session_state.logged_in:
+    tabs = st.tabs(["ROI Calculator", "ROI File Analysis", "Admin Panel", "User Activity", "Export Data"])
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.username = None
+    with tabs[0]:
+        st.subheader("📈 Manual ROI Calculator")
+        investment = st.number_input("Enter Investment Amount ($)", min_value=0.0, step=100.0)
+        returns = st.number_input("Enter Return Amount ($)", min_value=0.0, step=100.0)
+        col1, col2 = st.columns(2)
+        with col1:
+            start_date = st.date_input("Start Date")
+        with col2:
+            end_date = st.date_input("End Date")
 
-if "trigger_rerun" not in st.session_state:
-    st.session_state.trigger_rerun = False
+        if st.button("Calculate ROI"):
+            if investment > 0:
+                roi = (returns - investment) / investment
+                st.metric("ROI", f"{roi:.2%}")
 
-# Login Section
-if not st.session_state.logged_in:
-    st.markdown("<div class='login-container'><div class='login-box'>", unsafe_allow_html=True)
-    st.image("https://img.icons8.com/fluency/96/lock.png", width=60)
-    st.title("ROI Dashboard Login")
-    username = st.text_input("Username", key="login_user")
-    password = st.text_input("Password", type="password", key="login_pass")
-
-    if st.button("Login"):
-        with st.spinner("Verifying credentials..."):
-            time.sleep(1)
-            if verify_user(username, password):
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                log_user_activity(username, "Login")
-                st.session_state.trigger_rerun = True
+                days = (end_date - start_date).days
+                if days > 0:
+                    years = days / 365.25
+                    annualized_roi = (1 + roi) ** (1 / years) - 1
+                    st.metric("Annualized ROI", f"{annualized_roi:.2%}")
+                else:
+                    st.warning("End date must be after start date.")
             else:
-                st.error("Invalid username or password.")
+                st.error("Investment must be greater than 0.")
 
-    st.markdown("</div></div>", unsafe_allow_html=True)
-
-    if st.session_state.get("trigger_rerun", False):
-        st.session_state.trigger_rerun = False
-        try:
-            st.rerun()
-        except Exception as e:
-            st.warning(f"Could not rerun: {e}")
-
-    st.stop()
-
-# User Display and Logout
-st.markdown(f"<div class='user-display'>👤 <b>{st.session_state.username}</b></div>", unsafe_allow_html=True)
-st.markdown("<div class='logout-button'>", unsafe_allow_html=True)
-if st.button("Logout", key="logout", help="Click to logout"):
-    log_user_activity(st.session_state.username, "Logout")
-    st.session_state.logged_in = False
-    st.session_state.username = None
-    st.rerun()
-st.markdown("</div>", unsafe_allow_html=True)
-
-# Tabs for App Sections
-roi_tab, file_tab, admin_tab, activity_tab = st.tabs(["ROI Calculator", "ROI File Analysis", "Admin Management", "User Activity"])
-
-with roi_tab:
-    st.header("📈 Manual ROI Calculator")
-    revenue = st.number_input("Enter Revenue", min_value=0.0)
-    cost = st.number_input("Enter Cost", min_value=0.0)
-    if cost > 0:
-        roi = ((revenue - cost) / cost) * 100
-        annual_roi = roi * 12  # Assuming monthly ROI
-        st.metric(label="ROI (%)", value=f"{roi:.2f}%")
-        st.metric(label="Annualized ROI (%)", value=f"{annual_roi:.2f}%")
-
-with file_tab:
-    st.header("📁 ROI File Analysis")
-
-    uploaded_file = st.file_uploader("Upload ROI CSV File", type=["csv"])
-    if uploaded_file is not None:
-        try:
+    with tabs[1]:
+        st.subheader("📂 ROI File Analysis")
+        uploaded_file = st.file_uploader("Upload ROI Data File (CSV)", type=["csv"])
+        if uploaded_file:
             df = pd.read_csv(uploaded_file)
-            st.success("File uploaded successfully!")
-
-            st.subheader("🔍 Data Preview")
+            st.write("Preview of uploaded data:")
             st.dataframe(df.head())
 
-            numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
-            if "Revenue" in df.columns and "Cost" in df.columns:
-                df["ROI (%)"] = ((df["Revenue"] - df["Cost"]) / df["Cost"]) * 100
-                df["Annualized ROI (%)"] = df["ROI (%)"] * 12
+            if "Investment" in df.columns and "Return" in df.columns:
+                df["ROI"] = (df["Return"] - df["Investment"]) / df["Investment"]
+                st.write("📊 ROI Calculations:")
+                st.dataframe(df[["Investment", "Return", "ROI"]])
 
-                st.subheader("📈 ROI Visualizations")
-                x_axis = st.selectbox("Select X-axis", df.columns, index=0)
-                y_axis = st.selectbox("Select Y-axis", ["ROI (%)", "Annualized ROI (%)"])
-                chart_type = st.radio("Choose Chart Type", ["Line", "Bar"], horizontal=True)
+                fig = px.bar(df, y="ROI", title="ROI by Entry", labels={"index": "Entry", "ROI": "ROI"})
+                st.plotly_chart(fig)
+            else:
+                st.error("File must contain 'Investment' and 'Return' columns.")
 
-                if chart_type == "Line":
-                    fig = px.line(df, x=x_axis, y=y_axis, title=f"{y_axis} over {x_axis}")
-                else:
-                    fig = px.bar(df, x=x_axis, y=y_axis, title=f"{y_axis} by {x_axis}")
+    with tabs[2]:
+        st.subheader("🔐 Admin Panel")
 
-                st.plotly_chart(fig, use_container_width=True)
+        st.markdown("### Add New User")
+        new_user = st.text_input("New Username")
+        new_pass = st.text_input("New Password", type="password")
+        if st.button("Add User"):
+            if new_user and new_pass:
+                save_user(new_user, new_pass)
+                st.success(f"User '{new_user}' added.")
+                log_user_activity(st.session_state.username, f"Added user {new_user}")
+            else:
+                st.error("Please enter both username and password.")
 
-                st.subheader("📊 Summary Statistics")
-                st.write(df[["Revenue", "Cost", "ROI (%)", "Annualized ROI (%)"]].describe())
+        st.markdown("---")
+        st.markdown("### Reset/Delete Existing User")
+        users = load_users()
+        usernames = users["username"].tolist()
+        selected_user = st.selectbox("Select User", usernames)
 
-                st.subheader("⬇️ Export Processed Data")
-                buffer = io.BytesIO()
-                df.to_csv(buffer, index=False)
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔁 Reset User Password"):
+                new_password = st.text_input("Enter New Password", key="reset_pass", type="password")
+                if new_password:
+                    hashed_pw = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+                    users.loc[users.username == selected_user, "password"] = hashed_pw
+                    users.to_csv(USER_FILE, index=False)
+                    st.success(f"Password for {selected_user} has been reset.")
+                    log_user_activity(st.session_state.username, f"Reset password for {selected_user}")
+        with col2:
+            if selected_user != DEFAULT_ADMIN["username"] and st.button("❌ Delete User"):
+                users = users[users.username != selected_user]
+                users.to_csv(USER_FILE, index=False)
+                st.success(f"User '{selected_user}' deleted.")
+                log_user_activity(st.session_state.username, f"Deleted user {selected_user}")
+            elif selected_user == DEFAULT_ADMIN["username"]:
+                st.warning("Default admin user cannot be deleted.")
+
+    with tabs[3]:
+        st.subheader("📝 User Activity Log")
+        if os.path.exists(ACTIVITY_LOG_FILE):
+            logs = pd.read_csv(ACTIVITY_LOG_FILE)
+            st.dataframe(logs.tail(100))
+        else:
+            st.info("No activity logs found.")
+
+    with tabs[4]:
+        st.subheader("📤 Export Data")
+
+        if os.path.exists(ACTIVITY_LOG_FILE):
+            with open(ACTIVITY_LOG_FILE, "rb") as f:
                 st.download_button(
-                    label="Download CSV",
-                    data=buffer.getvalue(),
-                    file_name="processed_roi_data.csv",
+                    label="Download Activity Log",
+                    data=f,
+                    file_name="user_activity_log.csv",
                     mime="text/csv"
                 )
-            else:
-                st.warning("The file must contain 'Revenue' and 'Cost' columns.")
-        except Exception as e:
-            st.error(f"Error reading file: {e}")
 
-with admin_tab:
-    st.subheader("🔐 Admin Dashboard")
-    users_df = load_users()
-
-    st.markdown("### 👥 Existing Users")
-    st.dataframe(users_df.drop(columns=["password"]))
-
-    st.markdown("### ➕ Add New User")
-    new_username = st.text_input("New Username")
-    new_password = st.text_input("New Password", type="password")
-    if st.button("Add User"):
-        if new_username and new_password:
-            if new_username in users_df['username'].values:
-                st.warning("User already exists.")
-            else:
-                save_user(new_username, new_password)
-                st.success(f"User '{new_username}' added.")
-                st.rerun()
+        if 'df' in locals():
+            csv_data = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="Download ROI Analysis",
+                data=csv_data,
+                file_name="roi_analysis.csv",
+                mime="text/csv"
+            )
         else:
-            st.warning("Username and password cannot be empty.")
-
-    st.markdown("### 🔁 Reset User Password")
-    non_admin_users = users_df[users_df.username != "admin"]
-    if not non_admin_users.empty:
-        user_to_reset = st.selectbox("Select user", non_admin_users["username"].tolist())
-        new_reset_password = st.text_input("New Password for Selected User", type="password")
-        if st.button("Reset Password", key="reset_pw_btn"):
-            if user_to_reset and new_reset_password:
-                users_df.loc[users_df["username"] == user_to_reset, "password"] = bcrypt.hashpw(new_reset_password.encode(), bcrypt.gensalt()).decode()
-                users_df.to_csv(USER_FILE, index=False)
-                st.success(f"Password for '{user_to_reset}' has been reset.")
-                st.rerun()
-            else:
-                st.warning("Please provide a valid user and password.")
-
-    st.markdown("### ❌ Delete User")
-    if not non_admin_users.empty:
-        user_to_delete = st.selectbox("Select user to delete", non_admin_users["username"].tolist())
-        if st.button("Delete User", key="delete_user_btn"):
-            users_df = users_df[users_df["username"] != user_to_delete]
-            users_df.to_csv(USER_FILE, index=False)
-            st.success(f"User '{user_to_delete}' deleted.")
-            st.rerun()
-
-with activity_tab:
-    st.subheader("📜 User Activity Log")
-    if os.path.exists(ACTIVITY_LOG_FILE):
-        logs_df = pd.read_csv(ACTIVITY_LOG_FILE)
-        st.dataframe(logs_df)
-    else:
-        st.info("No activity logs found.")
+            st.info("Upload a ROI file to enable export.")
