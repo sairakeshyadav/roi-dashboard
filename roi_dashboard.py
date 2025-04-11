@@ -212,14 +212,28 @@ with tabs[1]:
                 st.metric("Total Revenue", f"₹{total_rev:,.2f}")
 
                 st.markdown("#### 📊 ROI Visualization")
-                fig = px.bar(df, x=df.index, y='ROI', title="ROI by Row", color='ROI', color_continuous_scale='Blues')
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    x=df.index,
+                    y=df['ROI'],
+                    marker=dict(color=df['ROI'], colorscale='Viridis'),
+                    text=df['ROI'].round(2),
+                    textposition='auto',
+                    name='ROI %'
+                ))
+                fig.update_layout(
+                    title="Interactive ROI by Row",
+                    xaxis_title="Entry Index",
+                    yaxis_title="ROI %",
+                    plot_bgcolor='white',
+                    paper_bgcolor='rgba(240,248,255,0.8)',
+                    font=dict(size=12)
+                )
                 st.plotly_chart(fig, use_container_width=True)
 
                 csv_data = df.to_csv(index=False).encode('utf-8')
                 st.download_button("Download Processed ROI Data", csv_data, "roi_processed.csv", "text/csv")
 
-# Other admin tabs unchanged (already implemented)
-# They will remain active for admin and work as before
 
 
 
