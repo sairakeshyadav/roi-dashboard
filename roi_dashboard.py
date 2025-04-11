@@ -4,8 +4,6 @@ import bcrypt
 import os
 from datetime import datetime
 import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
 import time
 import io
 import PyPDF2
@@ -183,58 +181,48 @@ with tabs[1]:
             try:
                 reader = PyPDF2.PdfReader(uploaded_file)
                 pdf_text = "".join(page.extract_text() or "" for page in reader.pages)
-                st.text_area("PDF Content", pdf_text, height=300)
+                st.text_area("📄 PDF Content", pdf_text, height=300)
             except Exception as e:
-                st.error(f"Error reading PDF: {e}")
+                st.error(f"❌ Error reading PDF: {e}")
         elif file_type == "application/json":
             try:
                 data = pd.read_json(uploaded_file)
                 df = pd.json_normalize(data)
             except Exception as e:
-                st.error(f"Error reading JSON: {e}")
+                st.error(f"❌ Error reading JSON: {e}")
         elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             try:
                 doc = docx.Document(uploaded_file)
                 full_text = "\n".join([para.text for para in doc.paragraphs])
-                st.text_area("DOCX Content", full_text, height=300)
+                st.text_area("📄 DOCX Content", full_text, height=300)
             except Exception as e:
-                st.error(f"Error reading DOCX: {e}")
+                st.error(f"❌ Error reading DOCX: {e}")
 
         if df is not None:
             st.dataframe(df)
+
             if 'Cost' in df.columns and 'Revenue' in df.columns:
                 df['ROI'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
-                st.success("✅ ROI calculated and added.")
 
-                avg_roi = df['ROI'].mean()
-                total_rev = df['Revenue'].sum()
-                st.metric("Average ROI", f"{avg_roi:.2f}%")
-                st.metric("Total Revenue", f"₹{total_rev:,.2f}")
+                with st.container():
+                    st.markdown("""
+                        <div class="fade-in" style="padding: 1rem; background-color: #f9f9f9; border-radius: 12px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
+                            <h4 style="color: #4a4a4a;">🔍 ROI Summary</h4>
+                    """, unsafe_allow_html=True)
 
-                st.markdown("#### 📈 ROI Visualization")
-                fig = go.Figure()
-                fig.add_trace(go.Barpolar(
-                    r=df['ROI'],
-                    theta=[f"Entry {i}" for i in range(len(df))],
-                    marker_color=df['ROI'],
-                    marker_colorscale='icefire',
-                    marker_line_color="black",
-                    marker_line_width=1,
-                    opacity=0.8,
-                    name="ROI"
-                ))
-                fig.update_layout(
-                    title="Radial ROI Chart",
-                    polar=dict(
-                        radialaxis=dict(visible=True, range=[0, max(df['ROI'].max(), 100)]),
-                        angularaxis=dict(rotation=90, direction="clockwise")
-                    ),
-                    showlegend=False
-                )
-                st.plotly_chart(fig, use_container_width=True)
+                    avg_roi = df['ROI'].mean()
+                    total_rev = df['Revenue'].sum()
+                    total_cost = df['Cost'].sum()
+
+                    st.write(f"✅ **Total Revenue**: ₹{total_rev:,.2f}")
+                    st.write(f"💸 **Total Cost**: ₹{total_cost:,.2f}")
+                    st.write(f"📈 **Average ROI**: {avg_roi:.2f}%")
+
+                    st.markdown("</div>", unsafe_allow_html=True)
 
                 csv_data = df.to_csv(index=False).encode('utf-8')
-                st.download_button("Download Processed ROI Data", csv_data, "roi_processed.csv", "text/csv")
+                st.download_button("⬇️ Download ROI Data", csv_data, "roi_processed.csv", "text/csv")
+
 
 
 
