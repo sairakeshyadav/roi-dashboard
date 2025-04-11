@@ -11,6 +11,7 @@ import io
 
 # ---------- Constants ----------
 USER_FILE = "users.csv"
+ACTIVITY_LOG_FILE = "user_activity_log.csv"
 DEFAULT_ADMIN = {"username": "admin", "password": bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode()}
 
 # ---------- User Auth Functions ----------
@@ -37,6 +38,14 @@ def verify_user(username, password):
     if not user.empty:
         return bcrypt.checkpw(password.encode(), user.iloc[0].password.encode())
     return False
+
+def log_user_activity(user, action):
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_df = pd.DataFrame([[timestamp, user, action]], columns=["Timestamp", "User", "Action"])
+    if os.path.exists(ACTIVITY_LOG_FILE):
+        log_df.to_csv(ACTIVITY_LOG_FILE, mode='a', header=False, index=False)
+    else:
+        log_df.to_csv(ACTIVITY_LOG_FILE, index=False)
 
 # ---------- App UI ----------
 st.set_page_config(page_title="ROI Dashboard", layout="wide")
@@ -149,6 +158,7 @@ if not st.session_state.logged_in:
             if verify_user(username, password):
                 st.session_state.logged_in = True
                 st.session_state.username = username
+                log_user_activity(username, "Login")
                 st.session_state.trigger_rerun = True
             else:
                 st.error("Invalid username or password.")
@@ -168,13 +178,14 @@ if not st.session_state.logged_in:
 st.markdown(f"<div class='user-display'>👤 <b>{st.session_state.username}</b></div>", unsafe_allow_html=True)
 st.markdown("<div class='logout-button'>", unsafe_allow_html=True)
 if st.button("Logout", key="logout", help="Click to logout"):
+    log_user_activity(st.session_state.username, "Logout")
     st.session_state.logged_in = False
     st.session_state.username = None
     st.rerun()
 st.markdown("</div>", unsafe_allow_html=True)
 
 # Tabs for App Sections
-roi_tab, file_tab, admin_tab = st.tabs(["ROI Calculator", "ROI File Analysis", "Admin Management"])
+roi_tab, file_tab, admin_tab, activity_tab = st.tabs(["ROI Calculator", "ROI File Analysis", "Admin Management", "User Activity"])
 
 with roi_tab:
     st.header("📈 Manual ROI Calculator")
@@ -218,6 +229,15 @@ with file_tab:
                 st.subheader("📊 Summary Statistics")
                 st.write(df[["Revenue", "Cost", "ROI (%)", "Annualized ROI (%)"]].describe())
 
+                st.subheader("⬇️ Export Processed Data")
+                buffer = io.BytesIO()
+                df.to_csv(buffer, index=False)
+                st.download_button(
+                    label="Download CSV",
+                    data=buffer.getvalue(),
+                    file_name="processed_roi_data.csv",
+                    mime="text/csv"
+                )
             else:
                 st.warning("The file must contain 'Revenue' and 'Cost' columns.")
         except Exception as e:
@@ -266,3 +286,11 @@ with admin_tab:
             users_df.to_csv(USER_FILE, index=False)
             st.success(f"User '{user_to_delete}' deleted.")
             st.rerun()
+
+with activity_tab:
+    st.subheader("📜 User Activity Log")
+    if os.path.exists(ACTIVITY_LOG_FILE):
+        logs_df = pd.read_csv(ACTIVITY_LOG_FILE)
+        st.dataframe(logs_df)
+    else:
+        st.info("No activity logs found.")
