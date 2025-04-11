@@ -211,28 +211,31 @@ with tabs[1]:
                 st.metric("Average ROI", f"{avg_roi:.2f}%")
                 st.metric("Total Revenue", f"₹{total_rev:,.2f}")
 
-                st.markdown("#### 📊 ROI Visualization")
-                fig = go.Figure()
-                fig.add_trace(go.Bar(
-                    x=df.index,
-                    y=df['ROI'],
-                    marker=dict(color=df['ROI'], colorscale='Viridis'),
-                    text=df['ROI'].round(2),
-                    textposition='auto',
-                    name='ROI %'
-                ))
-                fig.update_layout(
-                    title="Interactive ROI by Row",
-                    xaxis_title="Entry Index",
-                    yaxis_title="ROI %",
-                    plot_bgcolor='white',
-                    paper_bgcolor='rgba(240,248,255,0.8)',
-                    font=dict(size=12)
-                )
+                st.markdown("#### 🌳 ROI Breakdown Visualization (Treemap)")
+                if 'Category' in df.columns:
+                    fig = px.treemap(
+                        df,
+                        path=['Category'],
+                        values='Revenue',
+                        color='ROI',
+                        color_continuous_scale='RdBu',
+                        title="Treemap of ROI by Category"
+                    )
+                else:
+                    df['Index'] = df.index.astype(str)
+                    fig = px.treemap(
+                        df,
+                        path=['Index'],
+                        values='Revenue',
+                        color='ROI',
+                        color_continuous_scale='RdBu',
+                        title="Treemap of ROI by Entry"
+                    )
                 st.plotly_chart(fig, use_container_width=True)
 
                 csv_data = df.to_csv(index=False).encode('utf-8')
                 st.download_button("Download Processed ROI Data", csv_data, "roi_processed.csv", "text/csv")
+
 
 
 
