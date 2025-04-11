@@ -100,6 +100,7 @@ elif menu == "ROI Calculator":
                     annualized_roi = (1 + roi) ** (1 / years) - 1
                     st.metric("Annualized ROI", f"{annualized_roi:.2%}")
                     st.toast("📊 ROI Calculated")
+                    st.balloons()
                 else:
                     st.warning("End date must be after start date to calculate annualized ROI.")
             else:
@@ -123,30 +124,34 @@ elif menu == "File ROI Analysis":
                 if not required_columns.issubset(df.columns):
                     st.error(f"❌ Missing columns: {required_columns - set(df.columns)}")
                 else:
-                    df['Date'] = pd.to_datetime(df['Date'])
-                    df['Profit'] = df['Revenue'] - df['Cost']
-                    df['ROI (%)'] = np.where(df['Cost'] != 0, ((df['Revenue'] - df['Cost']) / df['Cost']) * 100, 0)
-                    df['Cost/Conversion'] = np.where(df['Conversions'] != 0, df['Cost'] / df['Conversions'], 0)
-                    df['Revenue/Conversion'] = np.where(df['Conversions'] != 0, df['Revenue'] / df['Conversions'], 0)
+                    with st.spinner("Performing analysis..."):
+                        time.sleep(1)
+                        df['Date'] = pd.to_datetime(df['Date'])
+                        df['Profit'] = df['Revenue'] - df['Cost']
+                        df['ROI (%)'] = np.where(df['Cost'] != 0, ((df['Revenue'] - df['Cost']) / df['Cost']) * 100, 0)
+                        df['Cost/Conversion'] = np.where(df['Conversions'] != 0, df['Cost'] / df['Conversions'], 0)
+                        df['Revenue/Conversion'] = np.where(df['Conversions'] != 0, df['Revenue'] / df['Conversions'], 0)
 
-                    st.success("✅ Data Processed Successfully")
-                    st.dataframe(df)
+                        st.success("✅ Data Processed Successfully")
+                        st.toast("📈 Data Analysis Complete")
+                        st.dataframe(df)
 
-                    st.subheader("📈 ROI Over Time")
-                    roi_time = df.groupby("Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index()
-                    roi_time["ROI (%)"] = np.where(roi_time["Cost"] != 0, ((roi_time["Revenue"] - roi_time["Cost"]) / roi_time["Cost"]) * 100, 0)
-                    fig = px.line(roi_time, x="Date", y="ROI (%)", title="ROI (%) Over Time", markers=True)
-                    st.plotly_chart(fig, use_container_width=True)
+                        st.subheader("📈 ROI Over Time")
+                        roi_time = df.groupby("Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index()
+                        roi_time["ROI (%)"] = np.where(roi_time["Cost"] != 0, ((roi_time["Revenue"] - roi_time["Cost"]) / roi_time["Cost"]) * 100, 0)
+                        fig = px.line(roi_time, x="Date", y="ROI (%)", title="ROI (%) Over Time", markers=True)
+                        st.plotly_chart(fig, use_container_width=True)
 
-                    st.subheader("📊 Campaign ROI Summary")
-                    roi_summary = df.groupby("Campaign").agg({
-                        'Cost': 'sum',
-                        'Revenue': 'sum',
-                        'Profit': 'sum',
-                        'Conversions': 'sum'
-                    }).reset_index()
-                    roi_summary['ROI (%)'] = np.where(roi_summary["Cost"] != 0, ((roi_summary["Revenue"] - roi_summary["Cost"]) / roi_summary["Cost"]) * 100, 0)
-                    st.dataframe(roi_summary)
+                        st.subheader("📊 Campaign ROI Summary")
+                        roi_summary = df.groupby("Campaign").agg({
+                            'Cost': 'sum',
+                            'Revenue': 'sum',
+                            'Profit': 'sum',
+                            'Conversions': 'sum'
+                        }).reset_index()
+                        roi_summary['ROI (%)'] = np.where(roi_summary["Cost"] != 0, ((roi_summary["Revenue"] - roi_summary["Cost"]) / roi_summary["Cost"]) * 100, 0)
+                        st.dataframe(roi_summary)
+                        st.toast("📊 Summary Ready")
 
             except Exception as e:
                 st.error(f"⚠️ Error processing file: {e}")
