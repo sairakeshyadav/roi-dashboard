@@ -211,26 +211,34 @@ with tabs[1]:
                 st.metric("Average ROI", f"{avg_roi:.2f}%")
                 st.metric("Total Revenue", f"₹{total_rev:,.2f}")
 
-                st.markdown("#### 🌞 ROI Breakdown Visualization (Sunburst Chart)")
-                if 'Category' in df.columns:
-                    fig = px.sunburst(
+                st.markdown("#### 📈 ROI Animated Visualization")
+                if 'Date' in df.columns:
+                    df['Date'] = pd.to_datetime(df['Date'])
+                    df = df.sort_values('Date')
+                    fig = px.scatter(
                         df,
-                        path=['Category'],
-                        values='Revenue',
+                        x='Date',
+                        y='ROI',
+                        size='Revenue',
                         color='ROI',
-                        color_continuous_scale='RdBu',
-                        title="Sunburst Chart of ROI by Category"
+                        animation_frame=df['Date'].dt.strftime('%Y-%m-%d'),
+                        title="Animated ROI Over Time",
+                        color_continuous_scale='Viridis',
+                        size_max=60
                     )
                 else:
-                    df['Index'] = df.index.astype(str)
-                    fig = px.sunburst(
+                    df['Index'] = df.index
+                    fig = px.scatter(
                         df,
-                        path=['Index'],
-                        values='Revenue',
+                        x='Index',
+                        y='ROI',
+                        size='Revenue',
                         color='ROI',
-                        color_continuous_scale='RdBu',
-                        title="Sunburst Chart of ROI by Entry"
+                        title="ROI by Entry",
+                        color_continuous_scale='Plasma',
+                        size_max=60
                     )
+
                 st.plotly_chart(fig, use_container_width=True)
 
                 csv_data = df.to_csv(index=False).encode('utf-8')
