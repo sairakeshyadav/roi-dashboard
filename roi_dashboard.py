@@ -243,7 +243,12 @@ with tabs[2]:
     st.subheader("📅 Monthly ROI Trends")
     st.info("Coming soon with detailed visualizations!")
 
-with tabs[3]:
+if is_admin:
+    with tabs[3]:
+        ...
+    with tabs[4]:
+        ...
+
     st.subheader("👨‍💼 Admin Panel")
 
     st.markdown("### ➕ Add New User")
