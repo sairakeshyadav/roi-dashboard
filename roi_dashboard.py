@@ -8,6 +8,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import time
 import io
+import PyPDF2
+import docx
 
 # ---------- Constants ----------
 USER_FILE = "users.csv"
@@ -215,14 +217,53 @@ else:
 
     with tabs[1]:
         st.subheader("📂 ROI File Analysis")
-        uploaded_file = st.file_uploader("Upload CSV File", type="csv")
+        uploaded_file = st.file_uploader("Upload a file", type=["csv", "xlsx", "pdf", "docx", "json"])
+
         if uploaded_file:
-            df = pd.read_csv(uploaded_file)
-            st.dataframe(df)
-            if 'Cost' in df.columns and 'Revenue' in df.columns:
-                df['ROI'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
-                st.success("ROI calculated and added to the file.")
+            file_type = uploaded_file.type
+            df = None
+
+            if file_type == "text/csv":
+                df = pd.read_csv(uploaded_file)
+
+            elif file_type in ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"]:
+                df = pd.read_excel(uploaded_file)
+
+            elif file_type == "application/pdf":
+                try:
+                    reader = PyPDF2.PdfReader(uploaded_file)
+                    pdf_text = ""
+                    for page in reader.pages:
+                        pdf_text += page.extract_text() or ""
+                    st.text_area("📄 PDF Content", pdf_text, height=300)
+                    st.info("PDF content displayed as plain text.")
+                except Exception as e:
+                    st.error(f"Error reading PDF: {e}")
+
+            elif file_type == "application/json":
+                try:
+                    data = pd.read_json(uploaded_file)
+                    df = pd.json_normalize(data)
+                except Exception as e:
+                    st.error(f"Error reading JSON: {e}")
+
+            elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                try:
+                    doc = docx.Document(uploaded_file)
+                    full_text = "\n".join([para.text for para in doc.paragraphs])
+                    st.text_area("📄 DOCX Content", full_text, height=300)
+                except Exception as e:
+                    st.error(f"Error reading DOCX: {e}")
+
+            else:
+                st.warning("Unsupported file type.")
+
+            if df is not None:
                 st.dataframe(df)
+                if 'Cost' in df.columns and 'Revenue' in df.columns:
+                    df['ROI'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
+                    st.success("✅ ROI calculated and added.")
+                    st.dataframe(df)
 
     if st.session_state.username == "admin":
         with tabs[2]:
