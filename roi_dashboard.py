@@ -8,7 +8,6 @@ import time
 import io
 import PyPDF2
 import docx
-import streamlit.components.v1 as components
 
 # ---------- Constants ----------
 USER_FILE = "users.csv"
@@ -59,79 +58,15 @@ def log_user_activity(user, action):
     else:
         log_df.to_csv(ACTIVITY_LOG_FILE, index=False)
 
-# ---------- App UI Config ----------
+# ---------- App Config ----------
 st.set_page_config(page_title="ROI Dashboard", layout="wide")
 
-st.markdown("""
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
-
-        body {
-            background: linear-gradient(to right, #e0f7fa, #e1bee7);
-            font-family: 'Inter', sans-serif;
-        }
-        .stTabs [role="tab"] {
-            padding: 0.75rem 1.5rem;
-            margin-right: 1rem;
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #4a4a4a;
-            border-radius: 10px 10px 0 0;
-            background-color: #f1f1f1;
-            transition: all 0.3s ease-in-out;
-        }
-        .stTabs [role="tab"]:hover {
-            background-color: #e0e0e0;
-            transform: scale(1.05);
-        }
-        .stTabs [aria-selected="true"] {
-            background-color: #ffffff;
-            border-bottom: 2px solid #4a90e2;
-        }
-        .stButton > button {
-            transition: background-color 0.3s ease, transform 0.2s ease;
-        }
-        .stButton > button:hover {
-            background-color: #4a90e2;
-            color: white;
-            transform: scale(1.03);
-        }
-        .fade-in {
-            animation: fadeIn 1s ease-in;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .logout-button {
-            position: absolute;
-            right: 1rem;
-            top: 1rem;
-            background-color: #ff4d4d;
-            color: white;
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .logout-button:hover {
-            background-color: #ff0000;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# ---------- Login Page ----------
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
     st.session_state.username = ""
 
 if not st.session_state.authenticated:
-    st.markdown("""
-        <div style='text-align:center; padding-top: 50px;'>
-            <h2>🔐 ROI Dashboard Login</h2>
-        </div>
-    """, unsafe_allow_html=True)
+    st.title("🔐 ROI Dashboard Login")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
@@ -145,49 +80,37 @@ if not st.session_state.authenticated:
     st.stop()
 
 # ---------- Main App ----------
-st.markdown(f"### Welcome, `{st.session_state.username}`")
-if st.button("🚪 Logout"):
+st.sidebar.title(f"Welcome, {st.session_state.username}")
+if st.sidebar.button("🚪 Logout"):
     st.session_state.authenticated = False
     st.session_state.username = ""
     st.rerun()
 
 is_admin = st.session_state.username == "admin"
 
-# ---------- Tabs ----------
-all_tabs = [
-    "📊 ROI Calculator", 
-    "📂 ROI File Analysis", 
-    "📅 Monthly ROI Trends"
-       ]
 if is_admin:
-    all_tabs.extend([
-        "👨‍💼 Admin Panel", 
-        "📈 User Activity",      
-    ])
-    
-tabs = st.tabs(all_tabs)
+    tab_titles = ["ROI Calculator", "ROI File Analysis", "Monthly ROI Trends", "Admin Panel", "User Activity"]
+    roi_tab, file_tab, trends_tab, admin_tab, activity_tab = st.tabs(tab_titles)
+else:
+    tab_titles = ["ROI Calculator", "ROI File Analysis", "Monthly ROI Trends"]
+    roi_tab, file_tab, trends_tab = st.tabs(tab_titles)
 
 # ---------- ROI Calculator ----------
-with tabs[0]:
-    st.subheader("📊 ROI Calculator")
+with roi_tab:
+    st.header("📊 ROI Calculator")
     cost = st.number_input("Enter Cost", min_value=0.0)
     revenue = st.number_input("Enter Revenue", min_value=0.0)
-    date_range = st.date_input("Select Date Range", [])
-
     if st.button("Calculate ROI"):
         if cost == 0:
             st.error("Cost cannot be zero.")
         else:
             roi = ((revenue - cost) / cost) * 100
             st.success(f"ROI: {roi:.2f}%")
-            if date_range:
-                st.info(f"Analysis from {date_range[0]} to {date_range[-1]}")
 
-# ROI File Analysis Tab
-with tabs[1]:
-    st.subheader("📂 ROI File Analysis")
-    uploaded_file = st.file_uploader("Upload File", type=["csv", "xlsx", "pdf", "docx"], key="roi_analysis")
-
+# ---------- ROI File Analysis ----------
+with file_tab:
+    st.header("📂 ROI File Analysis")
+    uploaded_file = st.file_uploader("Upload File", type=["csv", "xlsx", "pdf", "docx"])
     if uploaded_file:
         ext = uploaded_file.name.split(".")[-1]
         df = None
@@ -213,73 +136,61 @@ with tabs[1]:
             total_revenue = grouped['Revenue'].sum()
             total_roi = ((total_revenue - total_cost) / total_cost) * 100 if total_cost != 0 else 0
 
-            st.markdown(f"""
-                <div class="fade-in" style="margin-top: 1rem; padding: 1rem; background-color: #e3f2fd; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
-                    <h3 style="color:#1565c0;">📈 Total Summary</h3>
-                    <p><strong>Total Revenue:</strong> ₹{total_revenue:,.2f}</p>
-                    <p><strong>Total Cost:</strong> ₹{total_cost:,.2f}</p>
-                    <p><strong>Total ROI:</strong> <span style="color:#2e7d32; font-weight:bold;">{total_roi:.2f}%</span></p>
-                </div>
-            """, unsafe_allow_html=True)
+            st.metric("Total Revenue", f"₹{total_revenue:,.2f}")
+            st.metric("Total Cost", f"₹{total_cost:,.2f}")
+            st.metric("Total ROI", f"{total_roi:.2f}%")
 
             for _, row in grouped.iterrows():
-                if isinstance(row['Campaign'], str) and not row['Campaign'].startswith("202"):
-                    st.markdown(f"""
-                        <div class="fade-in" style="margin: 10px 0; padding: 1rem; background-color: #ffffff; border-left: 5px solid #2196f3; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                            <h4>📌 {row['Campaign']}</h4>
-                            <p><strong>Revenue:</strong> ₹{row['Revenue']:,.2f}</p>
-                            <p><strong>Cost:</strong> ₹{row['Cost']:,.2f}</p>
-                            <p><strong>ROI:</strong> <span style="color:#28a745; font-weight:bold;">{row['ROI']:.2f}%</span></p>
-                        </div>
-                    """, unsafe_allow_html=True)
+                st.markdown(f"""
+                    <div class="fade-in" style="margin: 10px 0; padding: 0.8rem; background-color: #f0f8ff; border-left: 5px solid #4a90e2; border-radius: 8px; box-shadow: 0px 2px 6px rgba(0,0,0,0.05);">
+                        <strong>📢 {row['Campaign']}</strong><br>
+                        <span style="font-size: 14px;">💰 Revenue: ₹{row['Revenue']:,.2f}</span> | 
+                        <span style="font-size: 14px;">📉 Cost: ₹{row['Cost']:,.2f}</span> | 
+                        <span style="font-size: 14px; color:#28a745;">📈 ROI: {row['ROI']:.2f}%</span>
+                    </div>
+                """, unsafe_allow_html=True)
 
             csv = grouped.to_csv(index=False).encode('utf-8')
             st.download_button("Download ROI Summary", csv, "roi_summary.csv", "text/csv")
 
-# Monthly ROI Trends Tab
-with tabs[2]:
-    st.subheader("📅 Monthly ROI Trends")
-    st.info("Coming soon with detailed visualizations!")
+# ---------- Monthly ROI Trends ----------
+with trends_tab:
+    st.header("📅 Monthly ROI Trends")
+    st.info("Coming soon...")
 
+# ---------- Admin Panel ----------
 if is_admin:
-    with tabs[3]:
-        ...
+    with admin_tab:
+        st.header("👨‍💼 Admin Panel")
 
+        st.subheader("Add New User")
+        new_username = st.text_input("New Username")
+        new_password = st.text_input("New Password", type="password")
+        if st.button("Add User"):
+            if new_username and new_password:
+                existing_users = load_users()
+                if new_username in existing_users['username'].values:
+                    st.warning("Username already exists.")
+                else:
+                    save_user(new_username, new_password)
+                    st.success(f"User {new_username} added successfully.")
 
-    st.subheader("👨‍💼 Admin Panel")
+        st.subheader("Manage Existing Users")
+        users = load_users()
+        selected_user = st.selectbox("Select User", users['username'])
+        new_pass = st.text_input("Reset Password", type="password")
+        if st.button("Reset Password"):
+            reset_password(selected_user, new_pass)
+            st.success("Password reset successfully.")
 
-    st.markdown("### ➕ Add New User")
-    new_username = st.text_input("New Username")
-    new_password = st.text_input("New Password", type="password")
-    if st.button("Add User"):
-        if new_username and new_password:
-            existing_users = load_users()
-            if new_username in existing_users['username'].values:
-                st.warning("Username already exists.")
-            else:
-                save_user(new_username, new_password)
-                st.success(f"User `{new_username}` added successfully.")
-        else:
-            st.error("Please fill both username and password.")
+        if st.button("Delete User"):
+            delete_user(selected_user)
+            st.success("User deleted successfully.")
 
-    st.markdown("---")
-    st.markdown("### 🔧 Manage Existing Users")
-    users = load_users()
-    selected_user = st.selectbox("Select User to Manage", users['username'])
-    new_pass = st.text_input("Reset Password", type="password", key="admin_reset_password")
-    if st.button("🔁 Reset Password"):
-        reset_password(selected_user, new_pass)
-        st.success("Password reset successful")
-
-    if st.button("❌ Delete User"):
-        delete_user(selected_user)
-        st.success("User deleted")
-
-
-    with tabs[4]:
-        st.subheader("📈 User Activity")
+    with activity_tab:
+        st.header("📈 User Activity")
         if os.path.exists(ACTIVITY_LOG_FILE):
             logs = pd.read_csv(ACTIVITY_LOG_FILE)
             st.dataframe(logs)
         else:
-            st.warning("No activity log found.")
+            st.warning("No user activity found.")
