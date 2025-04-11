@@ -167,17 +167,21 @@ if is_admin:
 
 tabs = st.tabs(all_tabs)
 
-# ROI Calculator Tab
+# ---------- ROI Calculator ----------
 with tabs[0]:
     st.subheader("📊 ROI Calculator")
-    cost = st.number_input("Enter Campaign Cost", min_value=0.0, format="%.2f")
-    revenue = st.number_input("Enter Campaign Revenue", min_value=0.0, format="%.2f")
+    cost = st.number_input("Enter Cost", min_value=0.0)
+    revenue = st.number_input("Enter Revenue", min_value=0.0)
+    date_range = st.date_input("Select Date Range", [])
+
     if st.button("Calculate ROI"):
-        if cost > 0:
-            roi = ((revenue - cost) / cost) * 100
-            st.success(f"ROI is {roi:.2f}%")
+        if cost == 0:
+            st.error("Cost cannot be zero.")
         else:
-            st.error("Cost must be greater than 0")
+            roi = ((revenue - cost) / cost) * 100
+            st.success(f"ROI: {roi:.2f}%")
+            if date_range:
+                st.info(f"Analysis from {date_range[0]} to {date_range[-1]}")
 
 # ROI File Analysis Tab
 with tabs[1]:
