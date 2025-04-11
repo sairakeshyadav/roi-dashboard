@@ -124,7 +124,10 @@ if not st.session_state.logged_in:
 
     if st.session_state.get("trigger_rerun", False):
         st.session_state.trigger_rerun = False
-        st.rerun()
+        try:
+            st.experimental_rerun()
+        except Exception as e:
+            st.warning(f"Could not rerun: {e}")
 
     st.stop()
 
