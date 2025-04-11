@@ -182,7 +182,7 @@ if not st.session_state.logged_in:
     if st.session_state.login_trigger:
         log_user_activity(st.session_state.username, "Logged in")
         st.session_state.login_trigger = False
-        st.experimental_rerun()
+        st.rerun()
 
     st.markdown('</div></div>', unsafe_allow_html=True)
 else:
@@ -191,7 +191,7 @@ else:
     if st.button("Logout"):
         log_user_activity(st.session_state.username, "Logged out")
         st.session_state.logged_in = False
-        st.experimental_rerun()
+        st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
     tab_names = ["ROI Calculator", "ROI File Analysis"]
