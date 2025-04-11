@@ -159,118 +159,75 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-if 'logged_in' in st.session_state and st.session_state.logged_in:
+if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+    st.markdown('<div class="login-container"><div class="login-box">', unsafe_allow_html=True)
+    st.title("🔐 ROI Dashboard Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    login_btn = st.button("Login")
+
+    if login_btn:
+        if verify_user(username, password):
+            st.session_state.logged_in = True
+            st.session_state.username = username
+            log_user_activity(username, "Logged in")
+            st.experimental_rerun()
+        else:
+            st.error("Invalid username or password.")
+    st.markdown('</div></div>', unsafe_allow_html=True)
+else:
+    st.markdown(f"<div class='user-display'>👤 {st.session_state.username}</div>", unsafe_allow_html=True)
+    st.markdown("<div class='logout-button'>", unsafe_allow_html=True)
+    if st.button("Logout"):
+        log_user_activity(st.session_state.username, "Logged out")
+        st.session_state.logged_in = False
+        st.experimental_rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
     tabs = st.tabs(["ROI Calculator", "ROI File Analysis", "Admin Panel", "User Activity", "Export Data"])
 
     with tabs[0]:
         st.subheader("📈 Manual ROI Calculator")
-        investment = st.number_input("Enter Investment Amount ($)", min_value=0.0, step=100.0)
-        returns = st.number_input("Enter Return Amount ($)", min_value=0.0, step=100.0)
-        col1, col2 = st.columns(2)
-        with col1:
-            start_date = st.date_input("Start Date")
-        with col2:
-            end_date = st.date_input("End Date")
+        date = st.date_input("Select Date")
+        impressions = st.number_input("Impressions", value=0)
+        clicks = st.number_input("Clicks", value=0)
+        conversions = st.number_input("Conversions", value=0)
+        revenue = st.number_input("Revenue", value=0.0)
+        cost = st.number_input("Cost", value=0.0)
 
         if st.button("Calculate ROI"):
-            if investment > 0:
-                roi = (returns - investment) / investment
-                st.metric("ROI", f"{roi:.2%}")
-
-                days = (end_date - start_date).days
-                if days > 0:
-                    years = days / 365.25
-                    annualized_roi = (1 + roi) ** (1 / years) - 1
-                    st.metric("Annualized ROI", f"{annualized_roi:.2%}")
-                else:
-                    st.warning("End date must be after start date.")
-            else:
-                st.error("Investment must be greater than 0.")
+            roi = ((revenue - cost) / cost) * 100 if cost != 0 else 0
+            st.success(f"ROI: {roi:.2f}%")
 
     with tabs[1]:
         st.subheader("📂 ROI File Analysis")
-        uploaded_file = st.file_uploader("Upload ROI Data File (CSV)", type=["csv"])
+        uploaded_file = st.file_uploader("Upload CSV File", type="csv")
         if uploaded_file:
             df = pd.read_csv(uploaded_file)
-            st.write("Preview of uploaded data:")
-            st.dataframe(df.head())
-
-            if "Investment" in df.columns and "Return" in df.columns:
-                df["ROI"] = (df["Return"] - df["Investment"]) / df["Investment"]
-                st.write("📊 ROI Calculations:")
-                st.dataframe(df[["Investment", "Return", "ROI"]])
-
-                fig = px.bar(df, y="ROI", title="ROI by Entry", labels={"index": "Entry", "ROI": "ROI"})
-                st.plotly_chart(fig)
-            else:
-                st.error("File must contain 'Investment' and 'Return' columns.")
+            st.dataframe(df)
+            if 'Cost' in df.columns and 'Revenue' in df.columns:
+                df['ROI'] = ((df['Revenue'] - df['Cost']) / df['Cost']) * 100
+                st.success("ROI calculated and added to the file.")
+                st.dataframe(df)
 
     with tabs[2]:
         st.subheader("🔐 Admin Panel")
-
-        st.markdown("### Add New User")
         new_user = st.text_input("New Username")
         new_pass = st.text_input("New Password", type="password")
         if st.button("Add User"):
-            if new_user and new_pass:
-                save_user(new_user, new_pass)
-                st.success(f"User '{new_user}' added.")
-                log_user_activity(st.session_state.username, f"Added user {new_user}")
-            else:
-                st.error("Please enter both username and password.")
-
-        st.markdown("---")
-        st.markdown("### Reset/Delete Existing User")
-        users = load_users()
-        usernames = users["username"].tolist()
-        selected_user = st.selectbox("Select User", usernames)
-
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🔁 Reset User Password"):
-                new_password = st.text_input("Enter New Password", key="reset_pass", type="password")
-                if new_password:
-                    hashed_pw = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
-                    users.loc[users.username == selected_user, "password"] = hashed_pw
-                    users.to_csv(USER_FILE, index=False)
-                    st.success(f"Password for {selected_user} has been reset.")
-                    log_user_activity(st.session_state.username, f"Reset password for {selected_user}")
-        with col2:
-            if selected_user != DEFAULT_ADMIN["username"] and st.button("❌ Delete User"):
-                users = users[users.username != selected_user]
-                users.to_csv(USER_FILE, index=False)
-                st.success(f"User '{selected_user}' deleted.")
-                log_user_activity(st.session_state.username, f"Deleted user {selected_user}")
-            elif selected_user == DEFAULT_ADMIN["username"]:
-                st.warning("Default admin user cannot be deleted.")
+            save_user(new_user, new_pass)
+            st.success("User added successfully")
 
     with tabs[3]:
-        st.subheader("📝 User Activity Log")
+        st.subheader("📊 User Activity Log")
         if os.path.exists(ACTIVITY_LOG_FILE):
-            logs = pd.read_csv(ACTIVITY_LOG_FILE)
-            st.dataframe(logs.tail(100))
+            log_df = pd.read_csv(ACTIVITY_LOG_FILE)
+            st.dataframe(log_df)
         else:
-            st.info("No activity logs found.")
+            st.info("No activity log found.")
 
     with tabs[4]:
-        st.subheader("📤 Export Data")
-
+        st.subheader("⬇️ Export Data")
         if os.path.exists(ACTIVITY_LOG_FILE):
             with open(ACTIVITY_LOG_FILE, "rb") as f:
-                st.download_button(
-                    label="Download Activity Log",
-                    data=f,
-                    file_name="user_activity_log.csv",
-                    mime="text/csv"
-                )
-
-        if 'df' in locals():
-            csv_data = df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="Download ROI Analysis",
-                data=csv_data,
-                file_name="roi_analysis.csv",
-                mime="text/csv"
-            )
-        else:
-            st.info("Upload a ROI file to enable export.")
+                st.download_button("Download Activity Log", f, file_name="activity_log.csv")
