@@ -129,7 +129,7 @@ if not st.session_state.authenticated:
             st.session_state.authenticated = True
             st.session_state.username = username
             log_user_activity(username, "Login")
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("Invalid credentials")
     st.stop()
@@ -139,7 +139,7 @@ st.markdown(f"### Welcome, `{st.session_state.username}`")
 if st.button("🚪 Logout"):
     st.session_state.authenticated = False
     st.session_state.username = ""
-    st.experimental_rerun()
+    st.rerun()
 
 is_admin = st.session_state.username == "admin"
 
@@ -217,6 +217,10 @@ with tabs[1]:
 
                 csv_data = df.to_csv(index=False).encode('utf-8')
                 st.download_button("Download Processed ROI Data", csv_data, "roi_processed.csv", "text/csv")
+
+# Other admin tabs unchanged (already implemented)
+# They will remain active for admin and work as before
+
 
 # ---------- Admin Panel ----------
 if is_admin:
