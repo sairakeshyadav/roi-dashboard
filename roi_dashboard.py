@@ -152,14 +152,23 @@ elif menu == "File ROI Analysis":
                         }).reset_index()
                         roi_summary['ROI (%)'] = np.where(roi_summary["Cost"] != 0, ((roi_summary["Revenue"] - roi_summary["Cost"]) / roi_summary["Cost"]) * 100, 0)
 
-                        campaign_fig = go.Figure(data=[
-                            go.Table(
-                                header=dict(values=list(roi_summary.columns), fill_color='lightblue', align='left'),
-                                cells=dict(values=[roi_summary[col] for col in roi_summary.columns], fill_color='lavender', align='left')
-                            )
-                        ])
-
-                        st.plotly_chart(campaign_fig, use_container_width=True)
+                        fig_summary = px.bar(
+                            roi_summary.sort_values("ROI (%)", ascending=False),
+                            x="Campaign",
+                            y="ROI (%)",
+                            color="ROI (%)",
+                            color_continuous_scale="Viridis",
+                            title="📊 ROI by Campaign",
+                            labels={"ROI (%)": "ROI (%)", "Campaign": "Campaign"},
+                        )
+                        fig_summary.update_layout(
+                            xaxis_title="Campaign",
+                            yaxis_title="ROI (%)",
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            font=dict(size=14)
+                        )
+                        st.plotly_chart(fig_summary, use_container_width=True)
                         st.toast("📊 Summary Ready")
 
             except Exception as e:
