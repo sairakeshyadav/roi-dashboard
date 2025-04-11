@@ -40,24 +40,30 @@ def verify_user(username, password):
 
 # ---------- App UI ----------
 st.set_page_config(page_title="ROI Dashboard Login", layout="wide")
-st.title("🔐 ROI Dashboard with Analysis")
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
 
-# Sidebar menu control
-if not st.session_state.logged_in:
-    menu = st.sidebar.selectbox("Menu", ["Login"])
-else:
-    if st.session_state.username == "admin":
-        menu = st.sidebar.selectbox("Menu", ["ROI Calculator", "File ROI Analysis", "Admin", "Logout"])
-    else:
-        menu = st.sidebar.selectbox("Menu", ["ROI Calculator", "File ROI Analysis", "Logout"])
-
 # Login Section
-if menu == "Login":
-    st.subheader("Login")
+if not st.session_state.logged_in:
+    st.markdown("""
+        <style>
+            .centered-box {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+            }
+            .stTextInput>div>div>input {
+                text-align: center;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div class='centered-box'>", unsafe_allow_html=True)
+    st.title("🔐 ROI Dashboard Login")
     username = st.text_input("Username", key="login_user")
     password = st.text_input("Password", type="password", key="login_pass")
 
@@ -73,8 +79,19 @@ if menu == "Login":
             else:
                 st.error("Invalid username or password.")
 
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.stop()
+
+# Main Menu
+menu = None
+if st.session_state.logged_in:
+    if st.session_state.username == "admin":
+        menu = st.selectbox("Select View", ["ROI Calculator", "File ROI Analysis", "Admin", "Logout"], label_visibility="collapsed")
+    else:
+        menu = st.selectbox("Select View", ["ROI Calculator", "File ROI Analysis", "Logout"], label_visibility="collapsed")
+
 # Logout Section
-elif menu == "Logout":
+if menu == "Logout":
     st.session_state.logged_in = False
     st.session_state.username = None
     st.success("You have been logged out.")
@@ -146,10 +163,20 @@ elif menu == "File ROI Analysis":
                             mime="text/csv"
                         )
 
+                        st.markdown("### 📆 Select Grouping Frequency")
+                        grouping = st.selectbox("Group ROI Over Time By", ["Daily", "Weekly", "Monthly"], index=1)
+
+                        if grouping == "Daily":
+                            df_grouped = df.groupby("Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index()
+                        elif grouping == "Weekly":
+                            df_grouped = df.resample("W-Mon", on="Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index().sort_values("Date")
+                        elif grouping == "Monthly":
+                            df_grouped = df.resample("M", on="Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index().sort_values("Date")
+
+                        df_grouped["ROI (%)"] = np.where(df_grouped["Cost"] != 0, ((df_grouped["Revenue"] - df_grouped["Cost"]) / df_grouped["Cost"]) * 100, 0)
+
                         st.subheader("📈 ROI Over Time")
-                        roi_time = df.groupby("Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index()
-                        roi_time["ROI (%)"] = np.where(roi_time["Cost"] != 0, ((roi_time["Revenue"] - roi_time["Cost"]) / roi_time["Cost"]) * 100, 0)
-                        fig = px.line(roi_time, x="Date", y="ROI (%)", title="ROI (%) Over Time", markers=True)
+                        fig = px.line(df_grouped, x="Date", y="ROI (%)", title=f"ROI (%) Over Time - {grouping}", markers=True)
                         st.plotly_chart(fig, use_container_width=True)
 
                         st.subheader("📊 Campaign ROI Summary")
