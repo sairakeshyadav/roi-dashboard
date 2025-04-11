@@ -7,6 +7,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import time
+import io
 
 # ---------- Constants ----------
 USER_FILE = "users.csv"
@@ -137,6 +138,14 @@ elif menu == "File ROI Analysis":
                         st.toast("📈 Data Analysis Complete")
                         st.dataframe(df)
 
+                        csv = df.to_csv(index=False)
+                        st.download_button(
+                            label="📥 Download Processed Data as CSV",
+                            data=csv,
+                            file_name="processed_roi_data.csv",
+                            mime="text/csv"
+                        )
+
                         st.subheader("📈 ROI Over Time")
                         roi_time = df.groupby("Date").agg({"Cost": "sum", "Revenue": "sum"}).reset_index()
                         roi_time["ROI (%)"] = np.where(roi_time["Cost"] != 0, ((roi_time["Revenue"] - roi_time["Cost"]) / roi_time["Cost"]) * 100, 0)
@@ -170,6 +179,14 @@ elif menu == "File ROI Analysis":
                         )
                         st.plotly_chart(fig_summary, use_container_width=True)
                         st.toast("📊 Summary Ready")
+
+                        csv_summary = roi_summary.to_csv(index=False)
+                        st.download_button(
+                            label="📥 Download Campaign Summary",
+                            data=csv_summary,
+                            file_name="campaign_roi_summary.csv",
+                            mime="text/csv"
+                        )
 
             except Exception as e:
                 st.error(f"⚠️ Error processing file: {e}")
