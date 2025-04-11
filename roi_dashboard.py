@@ -41,6 +41,37 @@ def verify_user(username, password):
 # ---------- App UI ----------
 st.set_page_config(page_title="ROI Dashboard", layout="wide")
 
+st.markdown("""
+    <style>
+        .stTabs [role="tab"] {
+            padding: 0.75rem 1.5rem;
+            margin-right: 1rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #4a4a4a;
+            border-radius: 10px 10px 0 0;
+            background-color: #f1f1f1;
+            transition: all 0.3s ease-in-out;
+        }
+        .stTabs [role="tab"]:hover {
+            background-color: #e0e0e0;
+            transform: scale(1.05);
+        }
+        .stTabs [aria-selected="true"] {
+            background-color: #ffffff;
+            border-bottom: 2px solid #4a90e2;
+        }
+        .stButton > button {
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        .stButton > button:hover {
+            background-color: #4a90e2;
+            color: white;
+            transform: scale(1.03);
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 if os.getenv("ENV") == "development":
     st.session_state.logged_in = True
     st.session_state.username = "admin"
@@ -59,13 +90,17 @@ if not st.session_state.logged_in:
             .login-container {
                 display: flex;
                 justify-content: center;
-                align-items: start;
+                align-items: flex-start;
                 height: 100vh;
-                padding-top: 5vh;
+                padding-top: 10vh;
             }
             .login-box {
                 text-align: center;
                 width: 300px;
+                background-color: #f9f9f9;
+                padding: 2rem;
+                border-radius: 15px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             }
         </style>
     """, unsafe_allow_html=True)
@@ -95,42 +130,54 @@ if not st.session_state.logged_in:
 
 # Main Interface
 if st.session_state.logged_in:
-    col1, col2 = st.columns([0.85, 0.15])
-    with col1:
+    top_col1, top_col2 = st.columns([0.85, 0.15])
+    with top_col1:
         st.markdown(f"### 👤 Logged in as: `{st.session_state.username}`")
-    with col2:
-        if st.button("🚪 Logout"):
-            st.session_state.logged_in = False
-            st.session_state.username = None
-            st.experimental_rerun()
+    with top_col2:
+        st.markdown("""
+            <style>
+                .logout-button button {
+                    background-color: #ff4b4b;
+                    color: white;
+                    border-radius: 8px;
+                    font-weight: bold;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+        with st.container():
+            if st.button("🚪 Logout", key="logout_btn"):
+                st.session_state.logged_in = False
+                st.session_state.username = None
+                st.experimental_rerun()
 
     tab1, tab2, tab3 = st.tabs(["📈 ROI Calculator", "📂 File ROI Analysis", "🔐 Admin Management"])
 
     with tab1:
-        # Manual ROI Calculator Code
         st.subheader("📈 Manual ROI Calculator")
-        investment = st.number_input("Enter Investment Amount ($)", min_value=0.0, step=100.0)
-        returns = st.number_input("Enter Return Amount ($)", min_value=0.0, step=100.0)
-        start_date = st.date_input("Start Date")
-        end_date = st.date_input("End Date")
+        with st.form(key="manual_roi_form"):
+            investment = st.number_input("Enter Investment Amount ($)", min_value=0.0, step=100.0)
+            returns = st.number_input("Enter Return Amount ($)", min_value=0.0, step=100.0)
+            start_date = st.date_input("Start Date")
+            end_date = st.date_input("End Date")
+            calc_btn = st.form_submit_button("Calculate ROI")
 
-        if st.button("Calculate ROI"):
+        if calc_btn:
             if investment > 0:
                 roi = (returns - investment) / investment
-                st.metric("ROI", f"{roi:.2%}")
-
                 days = (end_date - start_date).days
-                if days > 0:
-                    years = days / 365.25
-                    annualized_roi = (1 + roi) ** (1 / years) - 1
-                    st.metric("Annualized ROI", f"{annualized_roi:.2%}")
-                else:
-                    st.warning("End date must be after start date to calculate annualized ROI.")
+                with st.spinner("Calculating ROI and Annualized ROI..."):
+                    time.sleep(1)
+                    st.metric("ROI", f"{roi:.2%}")
+                    if days > 0:
+                        years = days / 365.25
+                        annualized_roi = (1 + roi) ** (1 / years) - 1
+                        st.metric("Annualized ROI", f"{annualized_roi:.2%}")
+                    else:
+                        st.warning("End date must be after start date to calculate annualized ROI.")
             else:
                 st.error("Investment must be greater than 0.")
 
     with tab2:
-        # File ROI Analysis Code
         st.subheader("📂 Upload and Analyze ROI Data")
         uploaded_file = st.file_uploader("Upload Excel or CSV", type=["xlsx", "csv"])
         if uploaded_file is not None:
@@ -161,7 +208,8 @@ if st.session_state.logged_in:
                         ((roi_time["Revenue"] - roi_time["Cost"]) / roi_time["Cost"]) * 100,
                         0
                     )
-                    fig = px.line(roi_time, x="Date", y="ROI (%)", title="ROI (%) Over Time", markers=True)
+                    fig = px.line(roi_time, x="Date", y="ROI (%)", title="📊 ROI (%) Over Time", markers=True)
+                    fig.update_layout(transition_duration=500)
                     st.plotly_chart(fig, use_container_width=True)
 
                     roi_summary = df.groupby("Campaign").agg({
@@ -175,7 +223,13 @@ if st.session_state.logged_in:
                     campaign_fig = go.Figure()
                     campaign_fig.add_trace(go.Bar(x=roi_summary['Campaign'], y=roi_summary['ROI (%)'], name='ROI (%)'))
                     campaign_fig.add_trace(go.Bar(x=roi_summary['Campaign'], y=roi_summary['Profit'], name='Profit'))
-                    campaign_fig.update_layout(barmode='group', title="Campaign ROI Summary", xaxis_title="Campaign", yaxis_title="Value")
+                    campaign_fig.update_layout(
+                        barmode='group',
+                        title="📈 Campaign ROI Summary",
+                        xaxis_title="Campaign",
+                        yaxis_title="Value",
+                        transition=dict(duration=500)
+                    )
                     st.plotly_chart(campaign_fig, use_container_width=True)
 
             except Exception as e:
@@ -187,7 +241,6 @@ if st.session_state.logged_in:
         if st.session_state.username == "admin":
             st.subheader("🔐 Admin Dashboard")
             users_df = load_users()
-
             st.markdown("### 👥 Existing Users")
             st.dataframe(users_df.drop(columns=["password"]))
 
