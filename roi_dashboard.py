@@ -161,6 +161,17 @@ elif menu == "File ROI Analysis":
                         }).reset_index()
                         roi_summary['ROI (%)'] = np.where(roi_summary["Cost"] != 0, ((roi_summary["Revenue"] - roi_summary["Cost"]) / roi_summary["Cost"]) * 100, 0)
 
+                        campaign_dates = df.groupby("Campaign")["Date"].agg(["min", "max"]).reset_index()
+                        campaign_dates["days"] = (campaign_dates["max"] - campaign_dates["min"]).dt.days
+                        campaign_dates["years"] = campaign_dates["days"] / 365.25
+
+                        roi_summary = roi_summary.merge(campaign_dates[["Campaign", "years"]], on="Campaign", how="left")
+                        roi_summary["Annualized ROI (%)"] = np.where(
+                            roi_summary["years"] > 0,
+                            ((roi_summary["ROI (%)"] / 100 + 1) ** (1 / roi_summary["years"]) - 1) * 100,
+                            0
+                        )
+
                         fig_summary = px.bar(
                             roi_summary.sort_values("ROI (%)", ascending=False),
                             x="Campaign",
@@ -178,6 +189,24 @@ elif menu == "File ROI Analysis":
                             font=dict(size=14)
                         )
                         st.plotly_chart(fig_summary, use_container_width=True)
+
+                        fig_annual = px.bar(
+                            roi_summary.sort_values("Annualized ROI (%)", ascending=False),
+                            x="Campaign",
+                            y="Annualized ROI (%)",
+                            color="Annualized ROI (%)",
+                            color_continuous_scale="Plasma",
+                            title="📈 Annualized ROI by Campaign",
+                            labels={"Annualized ROI (%)": "Annualized ROI (%)", "Campaign": "Campaign"},
+                        )
+                        fig_annual.update_layout(
+                            xaxis_title="Campaign",
+                            yaxis_title="Annualized ROI (%)",
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            font=dict(size=14)
+                        )
+                        st.plotly_chart(fig_annual, use_container_width=True)
                         st.toast("📊 Summary Ready")
 
                         csv_summary = roi_summary.to_csv(index=False)
